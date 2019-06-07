@@ -20,7 +20,7 @@ def softrelu(x):
 
 def heaviside_q(rho, mu1, mu2):
     """
-        Computes exp( -Q(rho, mu1, mu2)) for Heaviside activation function.
+    Compute exp ( -Q(rho, mu1, mu2) ) for Heaviside activation
 
     """
     rho_hat = torch.sqrt(1 - rho * rho)
@@ -37,7 +37,8 @@ def heaviside_q(rho, mu1, mu2):
 
 def relu_q(rho, mu1, mu2):
     """
-        Computes exp( -Q(rho, mu1,  mu2)) for ReLU activation function.
+    Compute exp ( -Q(rho, mu1, mu2) ) for ReLU activation
+
     """
     rho_hat_plus_one = torch.sqrt(1 - rho * rho) + 1
     g_r = torch.asin(rho) - rho / rho_hat_plus_one  # why minus?

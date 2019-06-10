@@ -34,8 +34,13 @@ class LinearGaussian(nn.Module):
     def __initialize_weights(self):
         nn.init.zeros_(self.A_mean)
         nn.init.zeros_(self.b_mean)
-        nn.init.xavier_normal_(self.A_var)
-        nn.init.normal_(self.b_var)
+
+        shape = self.b_var.size(0)
+        s = shape * shape
+
+        nn.init.uniform_(self.A_var, a=0, b=s)
+        nn.init.uniform_(self.b_var, a=0, b=s)
+
 
     def forward(self, x):
         """

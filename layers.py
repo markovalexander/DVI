@@ -1,10 +1,31 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+EPS = 1e-8
+
 
 def matrix_diag_part(tensor):
     return torch.stack(tuple(t.diag() for t in torch.unbind(tensor, 0)))
+
+
+def KL_GG(p_mean, p_var, q_mean, q_var):
+    """
+    Computes KL (p || q) from p to q, assuming that both p and q have normal
+    distribution
+
+    :param p_mean:
+    :param p_var:
+    :param q_mean:
+    :param q_var:
+    :return:
+    """
+    s_q_var = q_var + EPS
+    entropy = 0.5 * (1 + math.log(2 * math.pi) + torch.log(p_var))
+    cross_entropy = 0.5 * (math.log(2 * math.pi) + torch.log(s_q_var) + \
+                           (p_var + (p_mean - q_mean) ** 2) / s_q_var)
+    return torch.sum(cross_entropy - entropy)
 
 
 class LinearGaussian(nn.Module):
@@ -17,21 +38,23 @@ class LinearGaussian(nn.Module):
         :param in_features: input dimension
         :param out_features: output dimension
         :param certain:  if false, than x is equal to its mean and has no variance
-        :param prior:  Not supported yet
+        :param prior:  prior type
         """
 
         super().__init__()
 
-        self.A_mean = nn.Parameter(torch.Tensor(in_features, out_features))
-        self.b_mean = nn.Parameter(torch.Tensor(out_features))
+        self.A_mean = nn.Parameter(torch.Tensor(in_dim, out_dim))
+        self.b_mean = nn.Parameter(torch.Tensor(out_dim))
         self.certain = certain
 
-        self.A_var = nn.Parameter(torch.Tensor(in_features, out_features))
-        self.b_var = nn.Parameter(torch.Tensor(out_features))
+        self.A_var = nn.Parameter(torch.Tensor(in_dim, out_dim))
+        self.b_var = nn.Parameter(torch.Tensor(out_dim))
 
-        self.__initialize_weights()
+        self.prior = prior
+        self.initialize_weights()
+        self.construct_priors(self.prior)
 
-    def __initialize_weights(self):
+    def initialize_weights(self):
         nn.init.zeros_(self.A_mean)
         nn.init.zeros_(self.b_mean)
 
@@ -41,6 +64,27 @@ class LinearGaussian(nn.Module):
         nn.init.uniform_(self.A_var, a=0, b=s)
         nn.init.uniform_(self.b_var, a=0, b=s)
 
+    def construct_priors(self, prior):
+        if prior == "DiagonalGaussian":
+            s1 = 1
+            s2 = 1
+
+            self._prior_A = {
+                'mean': torch.zeros_like(self.A_mean, requires_grad=False),
+                'var': torch.ones_like(self.A_var, requires_grad=False) * s2}
+            self._prior_b = {
+                'mean': torch.zeros_like(self.b_mean, requires_grad=False),
+                'var': torch.ones_like(self.b_var, requires_grad=False) * s1}
+        else:
+            raise NotImplementedError("{} prior is not supported".format(prior))
+
+    def compute_kl(self):
+        if self.prior == 'DiagonalGaussian':
+            kl_A = KL_GG(self.A_mean, self.A_var, self._prior_A['mean'],
+                         self._prior_A['var'])
+            kl_b = KL_GG(self.b_mean, self.b_var, self._prior_b['mean'],
+                         self._prior_b['var'])
+        return kl_A + kl_b
 
     def forward(self, x):
         """

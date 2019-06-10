@@ -55,3 +55,21 @@ def relu_q(rho, mu1, mu2):
 
 def delta_torch(rho, mu1, mu2):
     return gaussian_cdf(mu1) * gaussian_cdf(mu2) + relu_q(rho, mu1, mu2)
+
+def KL_GG(p_mean, p_var, q_mean, q_var):
+    """
+    Computes KL (p || q) from p to q, assuming that both p and q have normal
+    distribution
+
+    :param p_mean:
+    :param p_var:
+    :param q_mean:
+    :param q_var:
+    :return:
+    """
+    s_q_var = q_var + EPS
+    entropy = 0.5 * (1 + math.log(2 * math.pi) + torch.log(p_var))
+    cross_entropy = 0.5 * (math.log(2 * math.pi) + torch.log(s_q_var) + \
+                           (p_var + (p_mean - q_mean) ** 2) / s_q_var)
+    return torch.sum(cross_entropy - entropy)
+

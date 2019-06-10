@@ -1,31 +1,14 @@
-import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from bayesian_utils import KL_GG
 
 EPS = 1e-8
 
 
 def matrix_diag_part(tensor):
     return torch.stack(tuple(t.diag() for t in torch.unbind(tensor, 0)))
-
-
-def KL_GG(p_mean, p_var, q_mean, q_var):
-    """
-    Computes KL (p || q) from p to q, assuming that both p and q have normal
-    distribution
-
-    :param p_mean:
-    :param p_var:
-    :param q_mean:
-    :param q_var:
-    :return:
-    """
-    s_q_var = q_var + EPS
-    entropy = 0.5 * (1 + math.log(2 * math.pi) + torch.log(p_var))
-    cross_entropy = 0.5 * (math.log(2 * math.pi) + torch.log(s_q_var) + \
-                           (p_var + (p_mean - q_mean) ** 2) / s_q_var)
-    return torch.sum(cross_entropy - entropy)
 
 
 class LinearGaussian(nn.Module):

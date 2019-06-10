@@ -43,12 +43,12 @@ class LinearGaussian(nn.Module):
 
         super().__init__()
 
-        self.A_mean = nn.Parameter(torch.Tensor(in_dim, out_dim))
-        self.b_mean = nn.Parameter(torch.Tensor(out_dim))
+        self.A_mean = nn.Parameter(torch.Tensor(in_features, out_features))
+        self.b_mean = nn.Parameter(torch.Tensor(out_features))
         self.certain = certain
 
-        self.A_var = nn.Parameter(torch.Tensor(in_dim, out_dim))
-        self.b_var = nn.Parameter(torch.Tensor(out_dim))
+        self.A_var = nn.Parameter(torch.Tensor(in_features, out_features))
+        self.b_var = nn.Parameter(torch.Tensor(out_features))
 
         self.prior = prior
         self.initialize_weights()

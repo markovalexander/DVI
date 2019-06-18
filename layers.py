@@ -12,7 +12,8 @@ def matrix_diag_part(tensor):
 
 
 class LinearGaussian(nn.Module):
-    def __init__(self, in_features, out_features, certain=False, prior=None):
+    def __init__(self, in_features, out_features, certain=False,
+                 prior="DiagonalGaussian"):
         """
         Applies linear transformation y = xA^T + b
 
@@ -117,6 +118,12 @@ class LinearGaussian(nn.Module):
         term2 = A_xCov_A
         term2_diag = matrix_diag_part(term2)
 
+        _, n, _ = term2.size()
+        idx = torch.arange(0, n)
+
         term3_diag = self.b_var
         result_diag = term1_diag + term2_diag + term3_diag
-        return torch.diag_embed(result_diag)
+
+        result = term2
+        result[:, idx, idx] = result_diag
+        return result

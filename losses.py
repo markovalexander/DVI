@@ -7,7 +7,7 @@ EPS = 1e-8
 
 class RegressionLoss(nn.Module):
     def __init__(self, net, method='bayes', use_heteroskedastic=False,
-                 homo_log_var_scale=None):
+                 homo_log_var_scale=1.):
         """
         Compute ELBO for regression task
 

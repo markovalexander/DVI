@@ -28,12 +28,13 @@ class RegressionLoss(nn.Module):
         if self.use_het:
             raise NotImplementedError("heterostadic is not supported yet")
 
-        self.homo_log_var_scale = torch.FloatTensor([homo_log_var_scale])
+        self.homo_log_var_scale = homo_log_var_scale
 
     def gaussian_likelihood_core(self, target, mean, log_var, smm, sml, sll):
         const = math.log(2 * math.pi)
         exp = torch.exp(-log_var + 0.5 * sll)
-        return const + log_var + exp * (smm + (mean - sml - target) ** 2)
+        return -0.5 * (
+                    const + log_var + exp * (smm + (mean - sml - target) ** 2))
 
     def heteroskedastic_gaussian_loglikelihood(self, pred_mean, pred_var,
                                                target):
@@ -50,7 +51,8 @@ class RegressionLoss(nn.Module):
                                              sll)
 
     def homoskedastic_gaussian_loglikelihood(self, pred_mean, pred_var, target):
-        log_var = self.homo_log_var_scale
+        log_var = torch.FloatTensor([self.homo_log_var_scale],
+                                    device=pred_mean.device)
         mean = pred_mean[:, 0].view(-1)
         sll = sml = 0
         if self.method.lower() == 'bayes':
@@ -69,6 +71,8 @@ class RegressionLoss(nn.Module):
         for module in self.net.children():
             if hasattr(module, 'compute_kl'):
                 kl = kl + module.compute_kl()
+        if hasattr(self.net, 'compute_kl'):
+            kl = kl + self.net.compute_kl()
 
         gaussian_likelihood = self.heteroskedastic_gaussian_loglikelihood if self.use_het \
             else self.homoskedastic_gaussian_loglikelihood

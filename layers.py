@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from torch.distributions import MultivariateNormal
+
 from bayesian_utils import KL_GG
 
 EPS = 1e-8
@@ -117,7 +119,8 @@ class LinearGaussian(nn.Module):
         else:
             y_var = self.compute_var(x_mean, x_var)
 
-        sample = torch.randn(y_mean.size()) * torch.sqrt(matrix_diag_part(y_var)) + y_mean
+        dst = MultivariateNormal(loc=y_mean, covariance_matrix=y_var)
+        sample = dst.rsample()
         return sample, None
 
     def _det_forward(self, x):

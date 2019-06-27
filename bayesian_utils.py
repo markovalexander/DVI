@@ -53,8 +53,9 @@ def relu_q(rho, mu1, mu2):
         - (mu1 * mu1 + mu2 * mu2) * coef_sum + coef_prod * mu1 * mu2)
 
 
-def delta_torch(rho, mu1, mu2):
+def delta(rho, mu1, mu2):
     return gaussian_cdf(mu1) * gaussian_cdf(mu2) + relu_q(rho, mu1, mu2)
+
 
 def KL_GG(p_mean, p_var, q_mean, q_var):
     """

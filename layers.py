@@ -37,10 +37,11 @@ class LinearGaussian(nn.Module):
         self.prior = prior
         self.initialize_weights()
         self.construct_priors(self.prior)
+        self.use_dvi = True
 
     def initialize_weights(self):
-        nn.init.zeros_(self.A_mean)
-        nn.init.zeros_(self.b_mean)
+        nn.init.xavier_normal_(self.A_mean)
+        nn.init.normal_(self.b_mean)
 
         shape = self.b_var.size(0)
         s = shape * shape
@@ -70,7 +71,56 @@ class LinearGaussian(nn.Module):
                          self._prior_b['var'])
         return kl_A + kl_b
 
+    def determenistic(self, mode=True):
+        self.use_dvi = True
+
+    def mcvi(self, mode=True):
+        self.use_dvi = not mode
+
+    def get_mode(self):
+        if self.use_dvi:
+            print('In determenistic mode')
+        else:
+            print('In MCVI mode')
+
     def forward(self, x):
+        """
+        Compute expectation and variance after linear transform
+        y = xA^T + b
+
+        :param x: input, size [batch, in_features]
+        :return: tuple (y_mean, y_var) for determenistic mode:,  shapes:
+                 y_mean: [batch, out_features]
+                 y_var:  [batch, out_features, out_features]
+
+                 tuple (sample, None) for MCVI mode,
+                 sample : [batch, out_features] - local reparametrization of output
+        """
+        if self.use_dvi:
+            return self._det_forward(x)
+        else:
+            return self._mcvi_forward(x)
+
+    def _mcvi_forward(self, x):
+        if self.certain or not self.use_dvi:
+            x_mean = x
+            x_var = None
+        else:
+            x_mean = x[0]
+            x_var = x[1]
+
+        y_mean = F.linear(x_mean, self.A_mean.t()) + self.b_mean
+
+        if self.certain or not self.use_dvi:
+            xx = x_mean * x_mean
+            y_var = torch.diag_embed(F.linear(xx, self.A_var.t()) + self.b_var)
+        else:
+            y_var = self.compute_var(x_mean, x_var)
+
+        sample = torch.randn(y_mean.size()) * torch.sqrt(matrix_diag_part(y_var)) + y_mean
+        return sample, None
+
+    def _det_forward(self, x):
         """
         Compute expectation and variance after linear transform
         y = xA^T + b
@@ -97,6 +147,7 @@ class LinearGaussian(nn.Module):
             y_var = self.compute_var(x_mean, x_var)
 
         return y_mean, y_var
+
 
     def compute_var(self, x_mean, x_var):
         x_var_diag = matrix_diag_part(x_var)

@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 
-from bayesian_utils import KL_GG, softrelu, delta
+from bayesian_utils import KL_GG, softrelu, delta, heaviside_q, gaussian_cdf
 
-EPS = 1e-8
+EPS = 1e-6
 
 
 def matrix_diag_part(tensor):
@@ -220,11 +220,11 @@ class ReluGaussian(nn.Module):
         print(mu)
 
         z_mean = sqrt_x_var_diag * softrelu(mu)
-        z_var = self.compute_relu_var(x_var, x_var_diag, mu)
+        z_var = self.compute_var(x_var, x_var_diag, mu)
 
         return self.linear((z_mean, z_var))
 
-    def compute_relu_var(self, x_var, x_var_diag, mu):
+    def compute_var(self, x_var, x_var_diag, mu):
         mu1 = torch.unsqueeze(mu, 2)
         mu2 = mu1.permute(0, 2, 1)
 
@@ -233,6 +233,64 @@ class ReluGaussian(nn.Module):
         rho = x_var / (torch.sqrt(s11s22) + EPS)
         rho = torch.clamp(rho, -1 / (1 + EPS), 1 / (1 + EPS))
         return x_var * delta(rho, mu1, mu2)
+
+    def get_mode(self):
+        if self.linear.use_dvi:
+            print('Using determenistic mode')
+        else:
+            print('Using MCVI')
+
+
+# TODO: MCVI + diagonal mode
+class HeavisideGaussian(nn.Module):
+    def __init__(self, in_features, out_features, certain=False,
+                 prior="DiagonalGaussian"):
+        """
+        Computes y = heaviside(x) * A.T + b
+
+        A and b are Gaussian random variables
+
+        :param in_features: input dimension
+        :param out_features: output dimension
+        :param certain:  if false, than x is equal to its mean and has no variance
+        :param prior:  prior type
+        """
+
+        super().__init__()
+        self.linear = LinearGaussian(in_features, out_features, certain, prior)
+        self.certain = certain
+
+    def compute_kl(self):
+        return self.linear.compute_kl()
+
+    def determenistic(self, mode=True):
+        self.linear.use_dvi = True
+
+    def mcvi(self, mode=True):
+        self.linear.use_dvi = not mode
+
+    def forward(self, x):
+        x_mean = x[0]
+        x_var = x[1]
+
+        x_var_diag = matrix_diag_part(x_var)
+
+        sqrt_x_var_diag = torch.sqrt(x_var_diag)
+        mu = x_mean / (sqrt_x_var_diag + EPS)
+
+        z_mean = gaussian_cdf(mu)
+        z_var = self.compute_var(x_var, x_var_diag, mu)
+        return self.linear((z_mean, z_var))
+
+    def compute_var(self, x_var, x_var_diag, mu):
+        mu1 = torch.unsqueeze(mu, 2)
+        mu2 = mu1.permute(0, 2, 1)
+
+        s11s22 = torch.unsqueeze(x_var_diag, dim=2) * torch.unsqueeze(
+            x_var_diag, dim=1)
+        rho = x_var / torch.sqrt(s11s22)
+        rho = torch.clamp(rho, -1 / (1 + 1e-6), 1 / (1 + 1e-6))
+        return heaviside_q(rho, mu1, mu2)
 
     def get_mode(self):
         if self.linear.use_dvi:

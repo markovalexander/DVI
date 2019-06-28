@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import math
 
-EPS = 1e-8
+EPS = 1e-6
 
 
 def standard_gaussian(x):
@@ -27,12 +27,13 @@ def heaviside_q(rho, mu1, mu2):
     arcsin = torch.asin(rho)
 
     rho_s = torch.abs(rho) + EPS
-    arcsin_s = torch.abs(torch.asin(rho)) + EPS
+    arcsin_s = torch.abs(torch.asin(rho)) + EPS / 2
 
     A = arcsin / (2 * math.pi)
-    coef = rho_s / (2 * arcsin_s * rho_hat)
-    coefs_prod = (rho * rho) / (arcsin_s * rho_hat * (1 + rho_hat))
-    return A * torch.exp( -(mu1 * mu1 + mu2 * mu2) * coef + mu1 * mu2 * coefs_prod)
+    one_over_coef_sum = (2 * arcsin_s * rho_hat) / rho_s
+    one_over_coefs_prod = (arcsin_s * rho_hat * (1 + rho_hat)) / (rho * rho)
+    return A * torch.exp(-(
+                mu1 * mu1 + mu2 * mu2) / one_over_coef_sum + mu1 * mu2 / one_over_coefs_prod)
 
 
 def relu_q(rho, mu1, mu2):

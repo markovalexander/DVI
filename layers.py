@@ -32,8 +32,8 @@ class LinearGaussian(nn.Module):
         self.b_mean = nn.Parameter(torch.Tensor(out_features))
         self.certain = certain
 
-        self.A_var = nn.Parameter(torch.Tensor(in_features, out_features))
-        self.b_var = nn.Parameter(torch.Tensor(out_features))
+        self.A_logvar = nn.Parameter(torch.Tensor(in_features, out_features))
+        self.b_logvar = nn.Parameter(torch.Tensor(out_features))
 
         self.prior = prior
         self.initialize_weights()
@@ -44,11 +44,8 @@ class LinearGaussian(nn.Module):
         nn.init.xavier_normal_(self.A_mean)
         nn.init.normal_(self.b_mean)
 
-        shape = self.b_var.size(0)
-        s = shape * shape
-
-        nn.init.uniform_(self.A_var, a=0, b=s)
-        nn.init.uniform_(self.b_var, a=0, b=s)
+        nn.init.xavier_normal_(self.A_logvar)
+        nn.init.normal_(self.b_logvar)
 
     def construct_priors(self, prior):
         if prior == "DiagonalGaussian":
@@ -57,19 +54,19 @@ class LinearGaussian(nn.Module):
 
             self._prior_A = {
                 'mean': torch.zeros_like(self.A_mean, requires_grad=False),
-                'var': torch.ones_like(self.A_var, requires_grad=False) * s2}
+                'var': torch.ones_like(self.A_logvar, requires_grad=False) * s2}
             self._prior_b = {
                 'mean': torch.zeros_like(self.b_mean, requires_grad=False),
-                'var': torch.ones_like(self.b_var, requires_grad=False) * s1}
+                'var': torch.ones_like(self.b_logvar, requires_grad=False) * s1}
         else:
             raise NotImplementedError("{} prior is not supported".format(prior))
 
     def compute_kl(self):
         if self.prior == 'DiagonalGaussian':
-            kl_A = KL_GG(self.A_mean, self.A_var, self._prior_A['mean'],
-                         self._prior_A['var'])
-            kl_b = KL_GG(self.b_mean, self.b_var, self._prior_b['mean'],
-                         self._prior_b['var'])
+            kl_A = KL_GG(self.A_mean, torch.exp(self.A_logvar), self._prior_A['mean'].to(self.A_mean.device),
+                         self._prior_A['var'].to(self.A_mean.device))
+            kl_b = KL_GG(self.b_mean, torch.exp(self.b_logvar), self._prior_b['mean'].to(self.A_mean.device),
+                         self._prior_b['var'].to(self.A_mean.device))
         return kl_A + kl_b
 
     def determenistic(self, mode=True):
@@ -97,12 +94,14 @@ class LinearGaussian(nn.Module):
                  tuple (sample, None) for MCVI mode,
                  sample : [batch, out_features] - local reparametrization of output
         """
+        A_var = torch.exp(self.A_logvar)
+        b_var = torch.exp(self.b_logvar)
         if self.use_dvi:
-            return self._det_forward(x)
+            return self._det_forward(x, A_var, b_var)
         else:
-            return self._mcvi_forward(x)
+            return self._mcvi_forward(x, A_var, b_var)
 
-    def _mcvi_forward(self, x):
+    def _mcvi_forward(self, x, A_var, b_var):
         if self.certain or not self.use_dvi:
             x_mean = x
             x_var = None
@@ -114,7 +113,7 @@ class LinearGaussian(nn.Module):
 
         if self.certain or not self.use_dvi:
             xx = x_mean * x_mean
-            y_var = torch.diag_embed(F.linear(xx, self.A_var.t()) + self.b_var)
+            y_var = torch.diag_embed(F.linear(xx, A_var.t()) + b_var)
         else:
             y_var = self.compute_var(x_mean, x_var)
 
@@ -122,7 +121,7 @@ class LinearGaussian(nn.Module):
         sample = dst.rsample()
         return sample, None
 
-    def _det_forward(self, x):
+    def _det_forward(self, x, A_var,  b_var):
         """
         Compute expectation and variance after linear transform
         y = xA^T + b
@@ -144,17 +143,19 @@ class LinearGaussian(nn.Module):
 
         if self.certain:
             xx = x_mean * x_mean
-            y_var = torch.diag_embed(F.linear(xx, self.A_var.t()) + self.b_var)
+            y_var = torch.diag_embed(F.linear(xx, A_var.t()) + b_var)
         else:
             y_var = self.compute_var(x_mean, x_var)
 
         return y_mean, y_var
 
     def compute_var(self, x_mean, x_var):
+        A_var = torch.exp(self.A_logvar)
+
         x_var_diag = matrix_diag_part(x_var)
         xx_mean = x_var_diag + x_mean * x_mean
 
-        term1_diag = torch.matmul(xx_mean, self.A_var)
+        term1_diag = torch.matmul(xx_mean, A_var)
 
         flat_xCov = torch.reshape(x_var, (-1, self.A_mean.size(0)))  # [b*x, x]
         xCov_A = torch.matmul(flat_xCov, self.A_mean)  # [b * x, y]
@@ -173,7 +174,7 @@ class LinearGaussian(nn.Module):
         _, n, _ = term2.size()
         idx = torch.arange(0, n)
 
-        term3_diag = self.b_var
+        term3_diag = torch.exp(self.b_logvar)
         result_diag = term1_diag + term2_diag + term3_diag
 
         result = term2
@@ -214,10 +215,8 @@ class ReluGaussian(nn.Module):
         x_var = x[1]
 
         x_var_diag = matrix_diag_part(x_var)
-        sqrt_x_var_diag = torch.sqrt(x_var_diag)
+        sqrt_x_var_diag = torch.sqrt(x_var_diag + EPS)
         mu = x_mean / (sqrt_x_var_diag + EPS)
-
-        print(mu)
 
         z_mean = sqrt_x_var_diag * softrelu(mu)
         z_var = self.compute_var(x_var, x_var_diag, mu)

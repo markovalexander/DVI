@@ -182,7 +182,6 @@ class LinearGaussian(nn.Module):
         return result
 
 
-# TODO: MCVI + diagonal mode
 class ReluGaussian(nn.Module):
     def __init__(self, in_features, out_features, certain=False,
                  prior="DiagonalGaussian"):
@@ -200,26 +199,33 @@ class ReluGaussian(nn.Module):
         super().__init__()
         self.linear = LinearGaussian(in_features, out_features, certain, prior)
         self.certain = certain
+        self.use_dvi = True
 
     def compute_kl(self):
         return self.linear.compute_kl()
 
     def determenistic(self, mode=True):
-        self.linear.use_dvi = True
+        self.linear.use_dvi = mode
+        self.use_dvi = mode
 
     def mcvi(self, mode=True):
         self.linear.use_dvi = not mode
+        self.use_dvi = not mode
 
     def forward(self, x):
         x_mean = x[0]
         x_var = x[1]
 
-        x_var_diag = matrix_diag_part(x_var)
-        sqrt_x_var_diag = torch.sqrt(x_var_diag + EPS)
-        mu = x_mean / (sqrt_x_var_diag + EPS)
+        if not self.use_dvi:
+            z_mean = F.relu(x_mean)
+            z_var = None
+        else:
+            x_var_diag = matrix_diag_part(x_var)
+            sqrt_x_var_diag = torch.sqrt(x_var_diag + EPS)
+            mu = x_mean / (sqrt_x_var_diag + EPS)
 
-        z_mean = sqrt_x_var_diag * softrelu(mu)
-        z_var = self.compute_var(x_var, x_var_diag, mu)
+            z_mean = sqrt_x_var_diag * softrelu(mu)
+            z_var = self.compute_var(x_var, x_var_diag, mu)
 
         return self.linear((z_mean, z_var))
 
@@ -270,7 +276,7 @@ class HeavisideGaussian(nn.Module):
 
     def forward(self, x):
         x_mean = x[0]
-        x_var = x[1]
+        x_var = x[1] if x[1] is not None else x_mean * x_mean
 
         x_var_diag = matrix_diag_part(x_var)
 

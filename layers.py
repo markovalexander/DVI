@@ -49,23 +49,24 @@ class LinearGaussian(nn.Module):
 
     def construct_priors(self, prior):
         if prior == "DiagonalGaussian":
-            s1 = 1
-            s2 = 1
+            s1 = s2 = 0.1
 
             self._prior_A = {
-                'mean': torch.zeros_like(self.A_mean, requires_grad=False),
-                'var': torch.ones_like(self.A_logvar, requires_grad=False) * s2}
+                'mean': torch.zeros_like(self.A_mean, requires_grad=False).to(2),
+                'var': torch.ones_like(self.A_logvar, requires_grad=False).to(2) * s2}
             self._prior_b = {
-                'mean': torch.zeros_like(self.b_mean, requires_grad=False),
-                'var': torch.ones_like(self.b_logvar, requires_grad=False) * s1}
+                'mean': torch.zeros_like(self.b_mean, requires_grad=False).to(2),
+                'var': torch.ones_like(self.b_logvar, requires_grad=False).to(2) * s1}
         else:
             raise NotImplementedError("{} prior is not supported".format(prior))
 
     def compute_kl(self):
         if self.prior == 'DiagonalGaussian':
-            kl_A = KL_GG(self.A_mean, torch.exp(self.A_logvar), self._prior_A['mean'].to(self.A_mean.device),
+            kl_A = KL_GG(self.A_mean, torch.exp(self.A_logvar),
+                         self._prior_A['mean'].to(self.A_mean.device),
                          self._prior_A['var'].to(self.A_mean.device))
-            kl_b = KL_GG(self.b_mean, torch.exp(self.b_logvar), self._prior_b['mean'].to(self.A_mean.device),
+            kl_b = KL_GG(self.b_mean, torch.exp(self.b_logvar),
+                         self._prior_b['mean'].to(self.A_mean.device),
                          self._prior_b['var'].to(self.A_mean.device))
         return kl_A + kl_b
 
@@ -103,7 +104,7 @@ class LinearGaussian(nn.Module):
 
     def _mcvi_forward(self, x, A_var, b_var):
         if self.certain or not self.use_dvi:
-            x_mean = x
+            x_mean = x[0]
             x_var = None
         else:
             x_mean = x[0]
@@ -117,11 +118,11 @@ class LinearGaussian(nn.Module):
         else:
             y_var = self.compute_var(x_mean, x_var)
 
-        dst = MultivariateNormal(loc=y_mean, covariance_matrix=y_var)
+        dst = MultivariateNormal(loc=y_mean, covariance_matrix=y_var) # TODO: fully factorized?
         sample = dst.rsample()
         return sample, None
 
-    def _det_forward(self, x, A_var,  b_var):
+    def _det_forward(self, x, A_var, b_var):
         """
         Compute expectation and variance after linear transform
         y = xA^T + b
@@ -246,7 +247,6 @@ class ReluGaussian(nn.Module):
             print('Using MCVI')
 
 
-# TODO: MCVI + diagonal mode
 class HeavisideGaussian(nn.Module):
     def __init__(self, in_features, out_features, certain=False,
                  prior="DiagonalGaussian"):
@@ -264,19 +264,33 @@ class HeavisideGaussian(nn.Module):
         super().__init__()
         self.linear = LinearGaussian(in_features, out_features, certain, prior)
         self.certain = certain
+        self.use_dvi = True
 
     def compute_kl(self):
         return self.linear.compute_kl()
 
     def determenistic(self, mode=True):
-        self.linear.use_dvi = True
+        self.linear.use_dvi = mode
+        self.use_dvi = mode
 
     def mcvi(self, mode=True):
         self.linear.use_dvi = not mode
+        self.use_dvi = not mode
 
     def forward(self, x):
+        if not self.use_dvi:
+            raise NotImplementedError(
+                "Heaviside activation function is not supported in MCVI mode")
+        #
+        # if not self.use_dvi:
+        #     x_mean = x[0]
+        #     x_var = x_mean * x_mean
+        #
+        #     z_mean = x_mean
+        #     z_mean[x_mean > 0] = 1
+        #     z_mean[]
         x_mean = x[0]
-        x_var = x[1] if x[1] is not None else x_mean * x_mean
+        x_var = x[1]
 
         x_var_diag = matrix_diag_part(x_var)
 
@@ -285,6 +299,7 @@ class HeavisideGaussian(nn.Module):
 
         z_mean = gaussian_cdf(mu)
         z_var = self.compute_var(x_var, x_var_diag, mu)
+
         return self.linear((z_mean, z_var))
 
     def compute_var(self, x_var, x_var_diag, mu):

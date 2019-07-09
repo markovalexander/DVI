@@ -2,12 +2,13 @@ import math
 import torch
 import torch.nn as nn
 
+from numpy import clip
+
 EPS = 1e-8
 
 
 class RegressionLoss(nn.Module):
-    def __init__(self, net, method='bayes', use_heteroskedastic=False,
-                 homo_log_var_scale=1.):
+    def __init__(self, net, args):
         """
         Compute ELBO for regression task
 
@@ -19,17 +20,21 @@ class RegressionLoss(nn.Module):
         super().__init__()
 
         self.net = net
-        self.method = method
-        self.use_het = use_heteroskedastic
-        if not self.use_het and homo_log_var_scale is None:
+        self.method = args.method
+        self.use_het = args.heteroskedastic
+        self.det = not args.mcvi
+        self.homo_log_var_scale = torch.FloatTensor([args.homo_log_var_scale]).to(
+            device=args.device)
+        if not self.use_het and self.homo_log_var_scale is None:
             raise ValueError(
                 "homo_log_var_scale must be set in homoskedastic mode")
+        self.warmup = args.warmup_updates
+        self.anneal = args.anneal_updates
 
-        self.homo_log_var_scale = homo_log_var_scale
 
     def gaussian_likelihood_core(self, target, mean, log_var, smm, sml, sll):
         const = math.log(2 * math.pi)
-        exp = torch.exp(-log_var + 0.5 * torch.log(sll))
+        exp = torch.exp(-log_var + 0.5 * (sll + EPS))
         return -0.5 * (
                     const + log_var + exp * (smm + (mean - sml - target) ** 2))
 
@@ -48,17 +53,21 @@ class RegressionLoss(nn.Module):
                                              sll)
 
     def homoskedastic_gaussian_loglikelihood(self, pred_mean, pred_var, target):
-        log_var = torch.FloatTensor([self.homo_log_var_scale]).to(device=pred_mean.device)
-        mean = pred_mean[:, 0].view(-1)
+        log_var = self.homo_log_var_scale
+        if self.det:
+            mean = pred_mean[:, 0].view(-1)
+        else:
+            mean = pred_mean.view(-1)
+
         sll = sml = 0
-        if self.method.lower() == 'bayes':
+        if self.method.lower() == 'bayes' and self.det:
             smm = pred_var[:, 0, 0].view(-1)
         else:
             smm = 0
         return self.gaussian_likelihood_core(target, mean, log_var, smm, sml,
                                              sll)
 
-    def forward(self, pred, target):
+    def forward(self, pred, target, step):
         pred_mean = pred[0]
         pred_var = pred[1]
 
@@ -76,5 +85,7 @@ class RegressionLoss(nn.Module):
         log_likelihood = gaussian_likelihood(pred_mean, pred_var, target)
         batched_likelihood = torch.mean(log_likelihood)
 
-        loss = kl - batched_likelihood
-        return loss, batched_likelihood, kl
+        lmbda = clip((step - self.warmup) / self.anneal, 0, 1)
+
+        loss = lmbda * kl / 500 - batched_likelihood
+        return loss, batched_likelihood, kl / 500

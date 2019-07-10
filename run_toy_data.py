@@ -62,6 +62,9 @@ class Model(nn.Module):
         else:
             self.out = ReluGaussian(hid_size, 1)
 
+        if args.mcvi:
+            self.mcvi()
+
     def forward(self, x):
         x = self.linear(x)
         x = self.relu1(x)
@@ -101,22 +104,31 @@ def generate_data(args):
     return x_train, y_train, x_test, y_test, toy_data
 
 
-def get_predictions(data, model):
+def get_predictions(data, model, args):
     output = model(data)
 
     output_cov = output[1]
     output_mean = output[0]
 
     n = output_mean.size(0)
-    m = output_mean.size(1)
 
-    out_cov = torch.reshape(output_cov, (n, m, m))
-    out_mean = output_mean
+    if not args.mcvi:
+        m = output_mean.size(1)
 
-    x = data.cpu().detach().numpy().squeeze()
-    y = {'mean': out_mean.cpu().detach().numpy(),
-         'cov': out_cov.cpu().detach().numpy()}
-    return (x, y)
+        out_cov = torch.reshape(output_cov, (n, m, m))
+        out_mean = output_mean
+
+        x = data.cpu().detach().numpy().squeeze()
+        y = {'mean': out_mean.cpu().detach().numpy(),
+             'cov': out_cov.cpu().detach().numpy()}
+    else:
+        out_mean = output_mean.unsqueeze(-1)
+        out_cov = torch.zeros_like(out_mean).unsqueeze(-1)
+
+        x = data.cpu().detach().numpy().squeeze()
+        y = {'mean': out_mean.cpu().detach().numpy(),
+             'cov': out_cov.cpu().detach().numpy()}
+    return x, y
 
 
 def toy_results_plot(data, data_generator, predictions=None, name=None):
@@ -139,6 +151,7 @@ def toy_results_plot(data, data_generator, predictions=None, name=None):
     # plot the model distribution
     if predictions is not None:
         x = predictions[0]
+
         y_mean = predictions[1]['mean'][:, 0]
         ell_mean = 2 * math.log(0.2)
         y_var = predictions[1]['cov'][:, 0, 0]
@@ -147,6 +160,8 @@ def toy_results_plot(data, data_generator, predictions=None, name=None):
         heteroskedastic_part = np.exp(0.5 * ell_mean)
         full_std = np.sqrt(y_var + np.exp(ell_mean + 0.5 * ell_var))
 
+        print(x.shape)
+        print(y_mean.shape)
         plt.scatter(x, y_mean, label='model mean')
         plt.scatter(x, y_mean - heteroskedastic_part, color='g', alpha=0.2)
         plt.scatter(x, y_mean + heteroskedastic_part, color='g', alpha=0.2,
@@ -207,10 +222,10 @@ if __name__ == "__main__":
 
         if epoch % 1000 == 0:
             with torch.no_grad():
-                predictions = get_predictions(x_train, model)
+                predictions = get_predictions(x_train, model, args)
                 toy_results_plot(toy_data,
                                  {'mean': base_model,
                                   'std': lambda x: noise_model(x, args)},
                                  predictions=predictions,
-                                 name='pics/toy_data/after_{}.png'.format(
+                                 name='pics/mcvi/after_{}.png'.format(
                                      epoch))

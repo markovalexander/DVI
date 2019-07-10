@@ -103,8 +103,8 @@ class LinearGaussian(nn.Module):
             return self._mcvi_forward(x, A_var, b_var)
 
     def _mcvi_forward(self, x, A_var, b_var):
-        if self.certain or not self.use_dvi:
-            x_mean = x[0]
+        if self.certain:
+            x_mean = x
             x_var = None
         else:
             x_mean = x[0]
@@ -118,7 +118,7 @@ class LinearGaussian(nn.Module):
         else:
             y_var = self.compute_var(x_mean, x_var)
 
-        dst = MultivariateNormal(loc=y_mean, covariance_matrix=y_var) # TODO: fully factorized?
+        dst = MultivariateNormal(loc=y_mean, covariance_matrix=y_var)
         sample = dst.rsample()
         return sample, None
 

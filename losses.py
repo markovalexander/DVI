@@ -30,6 +30,7 @@ class RegressionLoss(nn.Module):
                 "homo_log_var_scale must be set in homoskedastic mode")
         self.warmup = args.warmup_updates
         self.anneal = args.anneal_updates
+        self.batch_size = args.batch_size
 
 
     def gaussian_likelihood_core(self, target, mean, log_var, smm, sml, sll):
@@ -87,5 +88,5 @@ class RegressionLoss(nn.Module):
 
         lmbda = clip((step - self.warmup) / self.anneal, 0, 1)
 
-        loss = lmbda * kl / 500 - batched_likelihood
-        return loss, batched_likelihood, kl / 500
+        loss = lmbda * kl / self.batch_size - batched_likelihood
+        return loss, batched_likelihood, kl / self.batch_size

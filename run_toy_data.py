@@ -33,6 +33,8 @@ parser.add_argument('--lr', type=float, default=1e-2)
 parser.add_argument('--gamma', type=float, default=0.5,
                     help='lr decrease rate in MultiStepLR scheduler')
 parser.add_argument('--epochs', type=int, default=23000)
+parser.add_argument('--draw_every', type=int, default=1000)
+parser.add_argument('--milestones', nargs='+', type=int, default=[3000, 5000, 9000, 13000])
 
 
 def base_model(x):
@@ -104,7 +106,7 @@ def generate_data(args):
     return x_train, y_train, x_test, y_test, toy_data
 
 
-def get_predictions(data, model, args):
+def get_predictions(data, model, args, mcvi=False):
     output = model(data)
 
     output_cov = output[1]
@@ -112,7 +114,7 @@ def get_predictions(data, model, args):
 
     n = output_mean.size(0)
 
-    if not args.mcvi:
+    if not mcvi:
         m = output_mean.size(1)
 
         out_cov = torch.reshape(output_cov, (n, m, m))
@@ -160,8 +162,6 @@ def toy_results_plot(data, data_generator, predictions=None, name=None):
         heteroskedastic_part = np.exp(0.5 * ell_mean)
         full_std = np.sqrt(y_var + np.exp(ell_mean + 0.5 * ell_var))
 
-        print(x.shape)
-        print(y_mean.shape)
         plt.scatter(x, y_mean, label='model mean')
         plt.scatter(x, y_mean - heteroskedastic_part, color='g', alpha=0.2)
         plt.scatter(x, y_mean + heteroskedastic_part, color='g', alpha=0.2,
@@ -197,9 +197,13 @@ if __name__ == "__main__":
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
-                                                     [3000, 5000, 9000, 13000],
+                                                     args.milestones,
                                                      gamma=args.gamma)
 
+    if args.mcvi:
+        mode = 'mcvi'
+    else:
+        mode = 'det'
     step = 0
 
     for epoch in range(args.epochs):
@@ -215,17 +219,47 @@ if __name__ == "__main__":
         scheduler.step()
         optimizer.step()
 
-        if epoch % 1000 == 0:
+        if epoch % args.draw_every == 0:
             print("epoch : {}".format(epoch))
             print("ELBO : {:.4f}\t Likelihood: {:.4f}\t KL: {:.4f}".format(
                 -neg_elbo.item(), ll.item(), kl.item()))
 
-        if epoch % 1000 == 0:
+        if epoch % args.draw_every == 0:
             with torch.no_grad():
-                predictions = get_predictions(x_train, model, args)
+                predictions = get_predictions(x_train, model, args, args.mcvi)
                 toy_results_plot(toy_data,
                                  {'mean': base_model,
                                   'std': lambda x: noise_model(x, args)},
                                  predictions=predictions,
-                                 name='pics/mcvi/after_{}.png'.format(
-                                     epoch))
+                                 name='pics/{}/after_{}.png'.format(
+                                     mode, epoch))
+
+    with torch.no_grad():
+        predictions = get_predictions(x_train, model, args, args.mcvi)
+        toy_results_plot(toy_data,
+                         {'mean': base_model,
+                          'std': lambda x: noise_model(x, args)},
+                         predictions=predictions,
+                         name='pics/{}/last.png'.format(
+                             mode))
+
+    if args.mcvi:
+        model.determenistic()
+        with torch.no_grad():
+            predictions = get_predictions(x_train, model, args, False)
+            toy_results_plot(toy_data,
+                             {'mean': base_model,
+                              'std': lambda x: noise_model(x, args)},
+                             predictions=predictions,
+                             name='pics/{}/swapped.png'.format(
+                                 mode))
+    else:
+        model.mcvi()
+        with torch.no_grad():
+            predictions = get_predictions(x_train, model, args, True)
+            toy_results_plot(toy_data,
+                             {'mean': base_model,
+                              'std': lambda x: noise_model(x, args)},
+                             predictions=predictions,
+                             name='pics/{}/swapped.png'.format(
+                                 mode))

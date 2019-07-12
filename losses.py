@@ -1,8 +1,9 @@
 import math
 import torch
 import torch.nn as nn
-
 from numpy import clip
+
+from bayesian_utils import logsoftmax_mean
 
 EPS = 1e-8
 
@@ -23,7 +24,8 @@ class RegressionLoss(nn.Module):
         self.method = args.method
         self.use_het = args.heteroskedastic
         self.det = not args.mcvi
-        self.homo_log_var_scale = torch.FloatTensor([args.homo_log_var_scale]).to(
+        self.homo_log_var_scale = torch.FloatTensor(
+            [args.homo_log_var_scale]).to(
             device=args.device)
         if not self.use_het and self.homo_log_var_scale is None:
             raise ValueError(
@@ -32,12 +34,11 @@ class RegressionLoss(nn.Module):
         self.anneal = args.anneal_updates
         self.batch_size = args.batch_size
 
-
     def gaussian_likelihood_core(self, target, mean, log_var, smm, sml, sll):
         const = math.log(2 * math.pi)
         exp = torch.exp(-log_var + 0.5 * (sll + EPS))
         return -0.5 * (
-                    const + log_var + exp * (smm + (mean - sml - target) ** 2))
+                const + log_var + exp * (smm + (mean - sml - target) ** 2))
 
     def heteroskedastic_gaussian_loglikelihood(self, pred_mean, pred_var,
                                                target):
@@ -90,3 +91,33 @@ class RegressionLoss(nn.Module):
 
         loss = lmbda * kl / self.batch_size - batched_likelihood
         return loss, batched_likelihood, kl / self.batch_size
+
+
+class ClassificationLoss(nn.Module):
+    # TODO: add sampled_logsoftmax
+    def __init__(self, net, args):
+        super().__init__()
+
+        self.net = net
+        self.warmup = args.warmup_updates
+        self.anneal = args.anneal_updates
+        self.batch_size = args.batch_size
+        self.n_samples = args.mc_samples
+
+    def forward(self, logits, target, model, step):
+        logsoftmax = logsoftmax_mean(logits)
+
+        assert not target.requires_grad
+        kl = 0.0
+        for module in self.net.children():
+            if hasattr(module, 'compute_kl'):
+                kl = kl + module.compute_kl()
+        if hasattr(self.net, 'compute_kl'):
+            kl = kl + self.net.compute_kl()
+
+        logprob = torch.sum(target * logsoftmax, axis=1)
+        batch_logprob = torch.mean(logprob)
+
+        lmbda = clip((step - self.warmup) / self.anneal, 0, 1)
+        L = lmbda * kl / self.batch_size - batch_logprob
+        return L, batch_logprob, kl

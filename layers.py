@@ -3,13 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 
-from bayesian_utils import KL_GG, softrelu, delta, heaviside_q, gaussian_cdf
+from bayesian_utils import KL_GG, softrelu, delta, heaviside_q, gaussian_cdf, matrix_diag_part
 
 EPS = 1e-6
-
-
-def matrix_diag_part(tensor):
-    return torch.stack(tuple(t.diag() for t in torch.unbind(tensor, 0)))
 
 
 class LinearGaussian(nn.Module):

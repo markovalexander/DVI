@@ -2,7 +2,13 @@ import torch
 import numpy as np
 import math
 
+import torch.nn.functional as F
+
 EPS = 1e-6
+
+
+def matrix_diag_part(tensor):
+    return torch.stack(tuple(t.diag() for t in torch.unbind(tensor, 0)))
 
 
 def standard_gaussian(x):
@@ -74,4 +80,37 @@ def KL_GG(p_mean, p_var, q_mean, q_var):
     cross_entropy = 0.5 * (math.log(2 * math.pi) + torch.log(s_q_var) + \
                            (p_var + (p_mean - q_mean) ** 2) / s_q_var)
     return torch.sum(cross_entropy - entropy)
+
+
+def logsumexp_mean(y):
+    """
+    Compute <logsumexp(y)>
+    :param y: tuple of (y_mean, y_var)
+    y_mean dim [batch_size, hid_dim]
+    y_var dim  [batch_size, hid_dim, hid_dim]
+
+    :return:
+    """
+    y_mean = y[0]
+    y_var = y[1]
+    logsumexp = F.log_softmax(y_mean, dim=-1)
+    p = torch.exp(y_mean - logsumexp)
+
+    pTdiagVar = torch.sum(p * matrix_diag_part(y_var), dim=-1)
+    pTVarp = torch.squeeze(torch.mn(torch.unsqueeze(p, 1), torch.mn(y_var, torch.unsqueeze(p, 2))), dim=-1)
+    return logsumexp + 0.5 * (pTdiagVar - pTVarp)
+
+
+def logsoftmax_mean(y):
+    """
+    Compute <logsoftmax(y)>
+    :param y:
+    :param y: tuple of (y_mean, y_var)
+    y_mean dim [batch_size, hid_dim]
+    y_var dim  [batch_size, hid_dim, hid_dim]
+
+    """
+    return y[0] - logsumexp_mean(y)
+
+
 

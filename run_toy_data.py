@@ -25,7 +25,7 @@ parser.add_argument('--homo_var', type=float, default=0.35)
 parser.add_argument('--homo_log_var_scale', type=float,
                     default=2 * math.log(0.2))
 parser.add_argument('--method', type=str, default='bayes')
-parser.add_argument('--device', type=int, default=2)
+parser.add_argument('--device', type=int, default=0)
 parser.add_argument('--anneal_updates', type=int, default=1000)
 parser.add_argument('--warmup_updates', type=int, default=14000)
 parser.add_argument('--test_size', type=int, default=100)
@@ -263,3 +263,6 @@ if __name__ == "__main__":
                              predictions=predictions,
                              name='pics/{}/swapped.png'.format(
                                  mode))
+
+    # TODO: classification network (MNIST -> CIFAR)
+    # TODO: mnist from var-dropout homework (FC + LeNet5)

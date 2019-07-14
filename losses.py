@@ -105,6 +105,18 @@ class ClassificationLoss(nn.Module):
         self.n_samples = args.mc_samples
 
     def forward(self, logits, target, model, step):
+        """
+        Compute <log p(y | D)> - kl
+
+        :param logits: shape [batch_size, n_classes]
+        :param target: shape [batch_size, n_classes] -- one-hot target
+        :param model:
+        :param step:
+        :return:
+            total loss
+            batch_logprob term
+            total kl term
+        """
         logsoftmax = logsoftmax_mean(logits)
 
         assert not target.requires_grad
@@ -121,3 +133,4 @@ class ClassificationLoss(nn.Module):
         lmbda = clip((step - self.warmup) / self.anneal, 0, 1)
         L = lmbda * kl / self.batch_size - batch_logprob
         return L, batch_logprob, kl
+

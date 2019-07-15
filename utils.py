@@ -126,14 +126,14 @@ def generate_classification_data(args):
     x_train = torch.FloatTensor(x_train).to(args.device)
     y_train = torch.LongTensor(y_train).to(args.device).view(-1, 1)
 
-    y_onehot_train = torch.LongTensor(args.data_size, n_classes)
+    y_onehot_train = torch.LongTensor(args.data_size, n_classes).to(args.device)
     y_onehot_train.zero_()
     y_onehot_train.scatter_(1, y_train, 1)
 
     x_test = torch.FloatTensor(x_test).to(args.device)
     y_test = torch.LongTensor(y_test).to(args.device).view(-1, 1)
 
-    y_onehot_test = torch.LongTensor(args.test_size, n_classes)
+    y_onehot_test = torch.LongTensor(args.test_size, n_classes).to(args.device)
     y_onehot_test.zero_()
     y_onehot_test.scatter_(1, y_test, 1)
 

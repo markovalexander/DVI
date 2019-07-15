@@ -104,7 +104,7 @@ if __name__ == "__main__":
             print("ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
                 -neg_elbo.item(), categorical_mean.item(), kl.item()))
 
-            draw_classification_results(x_train, pred, 'after_{}_epoch.png', args)
+            draw_classification_results(x_train, pred, 'after_{}_epoch.png'.format(epoch), args)
 
     with torch.no_grad():
         y_logits = model(x_train)

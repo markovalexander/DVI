@@ -104,13 +104,12 @@ class ClassificationLoss(nn.Module):
         self.batch_size = args.batch_size
         self.n_samples = args.mc_samples
 
-    def forward(self, logits, target, model, step):
+    def forward(self, logits, target, step):
         """
         Compute <log p(y | D)> - kl
 
         :param logits: shape [batch_size, n_classes]
         :param target: shape [batch_size, n_classes] -- one-hot target
-        :param model:
         :param step:
         :return:
             total loss

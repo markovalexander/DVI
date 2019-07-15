@@ -76,7 +76,7 @@ if __name__ == "__main__":
     draw_classification_results(x_train, y_train, 'train.png', args)
 
     model = Model(args).to(args.device)
-    loss = ClassificationLoss(model, args)
+    criterion = ClassificationLoss(model, args)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
@@ -90,10 +90,10 @@ if __name__ == "__main__":
         optimizer.zero_grad()
 
         y_logits = model(x_train)
-        neg_elbo, categorical_mean, kl, logsoftmax = loss(y_logits, y_onehot_train, step)
+        loss, categorical_mean, kl, logsoftmax = criterion(y_logits, y_onehot_train, step)
 
         pred = torch.argmax(logsoftmax, dim=1)
-        neg_elbo.backward()
+        loss.backward()
 
         nn.utils.clip_grad.clip_grad_value_(model.parameters(), 0.1)
         scheduler.step()
@@ -102,7 +102,7 @@ if __name__ == "__main__":
         if epoch % args.draw_every == 0:
             print("epoch : {}".format(epoch))
             print("ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
-                -neg_elbo.item(), categorical_mean.item(), kl.item()))
+                -loss.item(), categorical_mean.item(), kl.item()))
 
             draw_classification_results(x_train, pred, 'after_{}_epoch.png'.format(epoch), args)
 

@@ -35,6 +35,7 @@ parser.add_argument('--milestones', nargs='+', type=int,
                     default=[3000, 5000, 9000, 13000])
 parser.add_argument('--dataset', default='classification')
 parser.add_argument('--input_size', default=2, type=int)
+parser.add_argument('--mc_samples', default=1, type=int)
 
 
 class Model(nn.Module):
@@ -76,4 +77,31 @@ if __name__ == "__main__":
 
     model = Model(args).to(args.device)
     loss = ClassificationLoss(model, args)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
+                                                     args.milestones,
+                                                     gamma=args.gamma)
+
     step = 0
+
+    for epoch in range(args.epochs):
+        step += 1
+        optimizer.zero_grad()
+
+        y_logits = model(x_train)
+        neg_elbo, categorical_mean, kl, logsoftmax = loss(y_logits, y_onehot_train, step)
+
+        pred = torch.argmax(logsoftmax, dim=1)
+        neg_elbo.backward()
+
+        nn.utils.clip_grad.clip_grad_value_(model.parameters(), 0.1)
+        scheduler.step()
+        optimizer.step()
+
+        if epoch % args.draw_every == 0:
+            print("epoch : {}".format(epoch))
+            print("ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
+                -neg_elbo.item(), categorical_mean.item(), kl.item()))
+
+            draw_classification_results(x_train, pred, 'after_{}_epoch.png', args)

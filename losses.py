@@ -131,5 +131,5 @@ class ClassificationLoss(nn.Module):
 
         lmbda = clip((step - self.warmup) / self.anneal, 0, 1)
         L = lmbda * kl / self.batch_size - batch_logprob
-        return L, batch_logprob, kl
+        return L, batch_logprob, kl, logsoftmax
 

@@ -10,7 +10,7 @@ EPS = 1e-6
 
 class LinearGaussian(nn.Module):
     def __init__(self, in_features, out_features, certain=False,
-                 prior="DiagonalGaussian"):
+                 prior="DiagonalGaussian", device='cpu'):
         """
         Applies linear transformation y = xA^T + b
 
@@ -33,7 +33,7 @@ class LinearGaussian(nn.Module):
 
         self.prior = prior
         self.initialize_weights()
-        self.construct_priors(self.prior)
+        self.construct_priors(self.prior, device)
         self.use_dvi = True
 
     def initialize_weights(self):
@@ -43,16 +43,16 @@ class LinearGaussian(nn.Module):
         nn.init.xavier_normal_(self.A_logvar)
         nn.init.normal_(self.b_logvar)
 
-    def construct_priors(self, prior):
+    def construct_priors(self, prior, device):
         if prior == "DiagonalGaussian":
             s1 = s2 = 0.1
 
             self._prior_A = {
-                'mean': torch.zeros_like(self.A_mean, requires_grad=False).to(2),
-                'var': torch.ones_like(self.A_logvar, requires_grad=False).to(2) * s2}
+                'mean': torch.zeros_like(self.A_mean, requires_grad=False).to(device),
+                'var': torch.ones_like(self.A_logvar, requires_grad=False).to(device) * s2}
             self._prior_b = {
-                'mean': torch.zeros_like(self.b_mean, requires_grad=False).to(2),
-                'var': torch.ones_like(self.b_logvar, requires_grad=False).to(2) * s1}
+                'mean': torch.zeros_like(self.b_mean, requires_grad=False).to(device),
+                'var': torch.ones_like(self.b_logvar, requires_grad=False).to(device) * s1}
         else:
             raise NotImplementedError("{} prior is not supported".format(prior))
 
@@ -181,7 +181,7 @@ class LinearGaussian(nn.Module):
 
 class ReluGaussian(nn.Module):
     def __init__(self, in_features, out_features, certain=False,
-                 prior="DiagonalGaussian"):
+                 prior="DiagonalGaussian", device='cpu'):
         """
         Computes y = relu(x) * A.T + b
 
@@ -194,7 +194,7 @@ class ReluGaussian(nn.Module):
         """
 
         super().__init__()
-        self.linear = LinearGaussian(in_features, out_features, certain, prior)
+        self.linear = LinearGaussian(in_features, out_features, certain, prior, device=device)
         self.certain = certain
         self.use_dvi = True
 

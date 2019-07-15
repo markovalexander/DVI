@@ -189,6 +189,8 @@ def toy_results_plot(data, data_generator, predictions=None, name=None):
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    args.device = torch.device('cuda:{}'.format(args.device) if torch.cuda.is_available() else 'cpu')
+
     print(args)
 
     model = Model(args).to(args.device)

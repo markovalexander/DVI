@@ -108,11 +108,11 @@ if __name__ == "__main__":
 
     with torch.no_grad():
         y_logits = model(x_train)
-        _, _, _, logsoftmax = loss(y_logits, y_onehot_train, step)
+        _, _, _, logsoftmax = criterion(y_logits, y_onehot_train, step)
         pred = torch.argmax(logsoftmax, dim=1)
         draw_classification_results(x_train, pred, 'end_train.png', args)
 
         y_logits = model(x_test)
-        _, _, _, logsoftmax = loss(y_logits, y_onehot_test, step)
+        _, _, _, logsoftmax = criterion(y_logits, y_onehot_test, step)
         pred = torch.argmax(logsoftmax, dim=1)
         draw_classification_results(x_test, pred, 'end_test.png', args)

@@ -127,7 +127,7 @@ class ClassificationLoss(nn.Module):
         if hasattr(self.net, 'compute_kl'):
             kl = kl + self.net.compute_kl()
 
-        logprob = torch.sum(target * logsoftmax, axis=1)
+        logprob = torch.sum(target.type(logsoftmax.type()) * logsoftmax, dim=1)
         batch_logprob = torch.mean(logprob)
 
         lmbda = clip((step - self.warmup) / self.anneal, 0, 1)

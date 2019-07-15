@@ -82,22 +82,25 @@ def KL_GG(p_mean, p_var, q_mean, q_var):
     return torch.sum(cross_entropy - entropy)
 
 
-def logsumexp_mean(y):
+def logsumexp_mean(y, keepdim=True):
     """
     Compute <logsumexp(y)>
     :param y: tuple of (y_mean, y_var)
     y_mean dim [batch_size, hid_dim]
     y_var dim  [batch_size, hid_dim, hid_dim]
-
     :return:
     """
     y_mean = y[0]
     y_var = y[1]
-    logsumexp = F.log_softmax(y_mean, dim=-1)
+    logsumexp = torch.logsumexp(y_mean, dim=-1, keepdim=keepdim)
     p = torch.exp(y_mean - logsumexp)
 
-    pTdiagVar = torch.sum(p * matrix_diag_part(y_var), dim=-1)
-    pTVarp = torch.squeeze(torch.mn(torch.unsqueeze(p, 1), torch.mn(y_var, torch.unsqueeze(p, 2))), dim=-1)
+    pTdiagVar = torch.sum(p * matrix_diag_part(y_var), dim=-1, keepdim=keepdim)
+    pTVarp = torch.squeeze(torch.matmul(torch.unsqueeze(p, 1),
+                                        torch.matmul(y_var,
+                                                     torch.unsqueeze(p, 2))),
+                           dim=-1)
+
     return logsumexp + 0.5 * (pTdiagVar - pTVarp)
 
 

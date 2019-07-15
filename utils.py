@@ -1,8 +1,10 @@
 import math
+import os
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from sklearn.datasets import make_classification, make_circles
 
 
 def toy_results_plot_regression(data, data_generator, predictions=None,
@@ -99,3 +101,60 @@ def generate_regression_data(args, sample_data, base_model):
     y_test = torch.FloatTensor(y_test).to(device=args.device)
 
     return x_train, y_train, x_test, y_test, toy_data
+
+
+def generate_classification_data(args):
+    if args.dataset.strip().lower() == 'classification':
+        n_informative = int(args.input_size * 0.8)
+        x_train, y_train = make_classification(n_samples=args.data_size,
+                                               n_features=args.input_size,
+                                               n_informative=n_informative,
+                                               n_redundant=args.input_size - n_informative,
+                                               n_classes=args.n_classes)
+
+        x_test, y_test = make_classification(n_samples=args.test_size,
+                                             n_features=args.input_size,
+                                             n_informative=n_informative,
+                                             n_redundant=args.input_size - n_informative,
+                                             n_classes=args.n_classes)
+        n_classes = args.n_classes
+    elif args.dataset.strip().lower() == 'circles':
+        x_train, y_train = make_circles(n_samples=args.data_size)
+        x_test, y_test = make_circles(n_samples=args.test_size)
+        n_classes = 2
+
+    x_train = torch.FloatTensor(x_train).to(args.device)
+    y_train = torch.LongTensor(y_train).to(args.device).view(-1, 1)
+
+    y_onehot_train = torch.LongTensor(args.data_size, n_classes)
+    y_onehot_train.zero_()
+    y_onehot_train.scatter_(1, y_train, 1)
+
+    x_test = torch.FloatTensor(x_test).to(args.device)
+    y_test = torch.LongTensor(y_test).to(args.device).view(-1, 1)
+
+    y_onehot_test = torch.LongTensor(args.test_size, n_classes)
+    y_onehot_test.zero_()
+    y_onehot_test.scatter_(1, y_test, 1)
+
+    return x_train, y_train, y_onehot_train, x_test, y_test, y_onehot_test
+
+
+def draw_classification_results(data, prediction, name, args):
+    """
+
+    :param data: input to draw, should be 2D
+    :param prediction: predicted class labels
+    :param name: output file name
+    :return:
+    """
+    x = data.detach().cpu().numpy()
+    y = prediction.detach().cpu().numpy().squeeze()
+
+    plt.figure(figsize=(10, 8))
+    plt.scatter(x[:, 0], x[:, 1], c=y)
+
+    path = 'pics/classification/circles' if args.dataset == "circles" else 'pics/classification/cls'
+    filename = path + os.sep + name
+    plt.savefig(filename)
+    plt.close()

@@ -5,6 +5,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from sklearn.datasets import make_classification, make_circles
+from torchvision import datasets, transforms
+
+
+def one_hot_encoding(tensor, n_classes, device):
+    ohe = torch.LongTensor(tensor.size(0), n_classes).to(device)
+    ohe.zero_()
+    ohe.scatter_(1, tensor, 1)
+    return ohe
 
 
 def toy_results_plot_regression(data, data_generator, predictions=None,
@@ -126,16 +134,12 @@ def generate_classification_data(args):
     x_train = torch.FloatTensor(x_train).to(args.device)
     y_train = torch.LongTensor(y_train).to(args.device).view(-1, 1)
 
-    y_onehot_train = torch.LongTensor(args.data_size, n_classes).to(args.device)
-    y_onehot_train.zero_()
-    y_onehot_train.scatter_(1, y_train, 1)
+    y_onehot_train = one_hot_encoding(y_train, n_classes, args.device)
 
     x_test = torch.FloatTensor(x_test).to(args.device)
     y_test = torch.LongTensor(y_test).to(args.device).view(-1, 1)
 
-    y_onehot_test = torch.LongTensor(args.test_size, n_classes).to(args.device)
-    y_onehot_test.zero_()
-    y_onehot_test.scatter_(1, y_test, 1)
+    y_onehot_test = one_hot_encoding(y_test, n_classes, args.device)
 
     return x_train, y_train, y_onehot_train, x_test, y_test, y_onehot_test
 
@@ -148,13 +152,58 @@ def draw_classification_results(data, prediction, name, args):
     :param name: output file name
     :return:
     """
+
     x = data.detach().cpu().numpy()
     y = prediction.detach().cpu().numpy().squeeze()
 
     plt.figure(figsize=(10, 8))
     plt.scatter(x[:, 0], x[:, 1], c=y)
 
-    path = 'pics/classification/circles' if args.dataset == "circles" else 'pics/classification/cls'
+    if args.dataset == "circles":
+        path = 'pics/classification/circles'
+    else:
+        path = 'pics/classification/cls'
+
+    if not os.path.exists(path):
+        os.mkdir(path)
+
     filename = path + os.sep + name
     plt.savefig(filename)
     plt.close()
+
+
+def load_mnist(args):
+    train_loader = torch.utils.data.DataLoader(
+        datasets.MNIST('../data', train=True, download=True,
+                       transform=transforms.Compose([
+                           transforms.ToTensor(),
+                           transforms.Normalize((0.1307,), (0.3081,))
+                       ])),
+        batch_size=args.batch_size, shuffle=True)
+
+    test_loader = torch.utils.data.DataLoader(
+        datasets.MNIST('../data', train=False, transform=transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.1307,), (0.3081,))
+        ])),
+        batch_size=args.batch_size, shuffle=True)
+    return train_loader, test_loader
+
+
+def get_statistics(model, criterion, loader, step, args):
+    elbo, cat_mean, kls, accuracy = [], [], [], []
+    with torch.no_grad():
+        for data, y in loader:
+            x = data.view(-1, 28 * 28) if args.arch == 'fc' else x
+            y_ohe = one_hot_encoding(y, 10, args.device)
+
+            loss, categorical_mean, kl, logsoftmax = criterion(model(x),
+                                                               y_ohe, step)
+            pred = torch.argmax(logsoftmax, dim=1)
+
+            elbo.append(-loss.item())
+            cat_mean.append(categorical_mean.item())
+            kls.append(kl.item())
+            accuracy.append((torch.sum(pred == torch.squeeze(y)) / args.data_size).item())
+
+    return np.mean(elbo), np.mean(cat_mean), np.mean(kls), np.mean(accuracy)

@@ -59,8 +59,8 @@ class Model(nn.Module):
 
     def determenistic(self):
         self.linear.determenistic()
-        self.relu1.mcvi()
-        self.out.mcvi()
+        self.relu1.determenistic()
+        self.out.determenistic()
 
 
 if __name__ == "__main__":
@@ -116,7 +116,8 @@ if __name__ == "__main__":
 
                 pred_test = torch.argmax(logsoftmax, dim=1)
                 print('test accuracy: {:.4f}'.format(
-                    torch.sum(pred_test == torch.squeeze(y_test)) / args.test_size))
+                    torch.sum(
+                        pred_test == torch.squeeze(y_test)) / args.test_size))
 
             draw_classification_results(x_train, pred,
                                         'after_{}_epoch.png'.format(epoch),

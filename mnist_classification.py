@@ -8,6 +8,8 @@ from losses import ClassificationLoss
 from models import LinearDVI, LeNetDVI
 from utils import load_mnist, one_hot_encoding, get_statistics
 
+import tqdm
+
 np.random.seed(42)
 
 EPS = 1e-6
@@ -55,9 +57,7 @@ if __name__ == "__main__":
         step += 1
         optimizer.zero_grad()
 
-        print(len(train_loader))
-
-        for data, y_train in train_loader:
+        for data, y_train in tqdm.tqdm(train_loader):
             x_train = data.view(-1, 28 * 28).to(args.device)
             y_train = y_train.to(args.device)
 

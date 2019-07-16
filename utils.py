@@ -197,7 +197,7 @@ def get_statistics(model, criterion, loader, step, args):
             x = data.view(-1, 28 * 28) if args.arch == 'fc' else x
             x = x.to(args.device)
             y = y.to(args.device)
-            y_ohe = one_hot_encoding(y, 10, args.device)
+            y_ohe = one_hot_encoding(y[:, None], 10, args.device)
 
             loss, categorical_mean, kl, logsoftmax = criterion(model(x),
                                                                y_ohe, step)

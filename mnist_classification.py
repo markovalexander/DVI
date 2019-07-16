@@ -37,6 +37,7 @@ if __name__ == "__main__":
     args.device = torch.device(
         'cuda:{}'.format(args.device) if torch.cuda.is_available() else 'cpu')
 
+    os.system("clear")
     print(args)
 
     train_loader, test_loader = load_mnist(args)
@@ -85,5 +86,5 @@ if __name__ == "__main__":
                     elbo, cat_mean, kl))
             print("train accuracy: {:.4f}".format(accuracy))
 
-        if epoch % 3 == 0 and epoch > 0:
+        if epoch % 10 == 0 and epoch > 0:
             os.system('clear')

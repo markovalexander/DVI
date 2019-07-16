@@ -58,7 +58,8 @@ if __name__ == "__main__":
         print(len(train_loader))
 
         for data, y_train in train_loader:
-            x_train = data.view(-1, 28 * 28)
+            x_train = data.view(-1, 28 * 28).to(args.device)
+            y_train = y_train.to(args.device)
 
             y_ohe = one_hot_encoding(y_train[:, None], 10, args.device)
             y_logits = model(x_train)

@@ -55,6 +55,7 @@ if __name__ == "__main__":
     step = 0
 
     for epoch in range(args.epochs):
+        print("epoch : {}".format(epoch))
         step += 1
         optimizer.zero_grad()
 
@@ -74,15 +75,15 @@ if __name__ == "__main__":
             scheduler.step()
             optimizer.step()
 
-        if epoch % 3 == 0:
-            os.system('clear')
         if epoch % args.report_every == 0:
             print("computing statistics....")
             elbo, cat_mean, kl, accuracy = get_statistics(model, criterion,
                                                           train_loader, step,
                                                           args)
-            print("epoch : {}".format(epoch))
             print(
                 "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
                     elbo, cat_mean, kl))
             print("train accuracy: {:.4f}".format(accuracy))
+
+        if epoch % 3 == 0 and epoch > 0:
+            os.system('clear')

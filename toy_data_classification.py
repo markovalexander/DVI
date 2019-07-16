@@ -6,9 +6,7 @@ from torch import nn
 
 from layers import LinearGaussian, ReluGaussian
 from losses import ClassificationLoss
-
 from utils import generate_classification_data, draw_classification_results
-
 
 np.random.seed(42)
 
@@ -67,11 +65,13 @@ class Model(nn.Module):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    args.device = torch.device('cuda:{}'.format(args.device) if torch.cuda.is_available() else 'cpu')
+    args.device = torch.device(
+        'cuda:{}'.format(args.device) if torch.cuda.is_available() else 'cpu')
 
     print(args)
 
-    x_train, y_train, y_onehot_train, x_test, y_test, y_onehot_test = generate_classification_data(args)
+    x_train, y_train, y_onehot_train, x_test, y_test, y_onehot_test = generate_classification_data(
+        args)
     draw_classification_results(x_test, y_test, 'test.png', args)
     draw_classification_results(x_train, y_train, 'train.png', args)
 
@@ -90,7 +90,8 @@ if __name__ == "__main__":
         optimizer.zero_grad()
 
         y_logits = model(x_train)
-        loss, categorical_mean, kl, logsoftmax = criterion(y_logits, y_onehot_train, step)
+        loss, categorical_mean, kl, logsoftmax = criterion(y_logits,
+                                                           y_onehot_train, step)
 
         pred = torch.argmax(logsoftmax, dim=1)
         loss.backward()
@@ -101,10 +102,25 @@ if __name__ == "__main__":
 
         if epoch % args.draw_every == 0:
             print("epoch : {}".format(epoch))
-            print("ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
-                -loss.item(), categorical_mean.item(), kl.item()))
+            print(
+                "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
+                    -loss.item(), categorical_mean.item(), kl.item()))
+            print("train accuracy: {:.4f}".format(
+                torch.sum(pred == torch.squeeze(y_train)) / args.data_size))
 
-            draw_classification_results(x_train, pred, 'after_{}_epoch.png'.format(epoch), args)
+            with torch.no_grad():
+                y_logits = model(x_test)
+                loss, categorical_mean, kl, logsoftmax = criterion(y_logits,
+                                                                   y_onehot_test,
+                                                                   step)
+
+                pred_test = torch.argmax(logsoftmax, dim=1)
+                print('test accuracy: {:.4f}'.format(
+                    torch.sum(pred_test == torch.squeeze(y_test)) / args.test_size))
+
+            draw_classification_results(x_train, pred,
+                                        'after_{}_epoch.png'.format(epoch),
+                                        args)
 
     with torch.no_grad():
         y_logits = model(x_train)

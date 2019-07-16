@@ -1,13 +1,12 @@
 import argparse
 
 import numpy as np
-
 import torch
 from torch import nn
 
 from losses import ClassificationLoss
-from utils import load_mnist, one_hot_encoding, get_statistics
 from models import LinearDVI, LeNetDVI
+from utils import load_mnist, one_hot_encoding, get_statistics
 
 np.random.seed(42)
 
@@ -29,7 +28,6 @@ parser.add_argument('--milestones', nargs='+', type=int,
                     default=[3000, 5000, 9000, 13000])
 parser.add_argument('--mc_samples', default=1, type=int)
 parser.add_argument('--report_every', type=int, default=100)
-
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -74,12 +72,12 @@ if __name__ == "__main__":
             scheduler.step()
             optimizer.step()
 
-        if epoch % args.draw_every == 0:
-
-            elbo, cat_mean, kl, accuracy = get_statistics(model, criterion, train_loader, step, args)
+        if epoch % args.report_every == 0:
+            elbo, cat_mean, kl, accuracy = get_statistics(model, criterion,
+                                                          train_loader, step,
+                                                          args)
             print("epoch : {}".format(epoch))
             print(
                 "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
                     elbo, cat_mean, kl))
             print("train accuracy: {:.4f}".format(accuracy))
-

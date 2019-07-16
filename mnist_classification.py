@@ -31,6 +31,7 @@ parser.add_argument('--milestones', nargs='+', type=int,
                     default=[3000, 5000, 9000, 13000])
 parser.add_argument('--mc_samples', default=1, type=int)
 parser.add_argument('--report_every', type=int, default=100)
+parser.add_argument('--clip_grad', type=float, default=0.1)
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -74,7 +75,9 @@ if __name__ == "__main__":
             pred = torch.argmax(logsoftmax, dim=1)
             loss.backward()
 
-            nn.utils.clip_grad.clip_grad_value_(model.parameters(), 0.1)
+            if args.clip_grad > 0:
+                nn.utils.clip_grad.clip_grad_value_(model.parameters(), args.clip_grad)
+
             optimizer.step()
 
             elbo.append(-loss.item())

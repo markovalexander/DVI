@@ -74,7 +74,8 @@ if __name__ == "__main__":
             scheduler.step()
             optimizer.step()
 
-        os.system('clear')
+        if epoch % 3 == 0:
+            os.system('clear')
         if epoch % args.report_every == 0:
             print("computing statistics....")
             elbo, cat_mean, kl, accuracy = get_statistics(model, criterion,

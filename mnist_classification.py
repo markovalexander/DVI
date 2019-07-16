@@ -57,6 +57,7 @@ if __name__ == "__main__":
 
     for epoch in range(args.epochs):
         print("epoch : {}".format(epoch))
+        scheduler.step()
         step += 1
         optimizer.zero_grad()
 
@@ -74,7 +75,6 @@ if __name__ == "__main__":
             loss.backward()
 
             nn.utils.clip_grad.clip_grad_value_(model.parameters(), 0.1)
-            scheduler.step()
             optimizer.step()
 
             elbo.append(-loss.item())

@@ -206,6 +206,6 @@ def get_statistics(model, criterion, loader, step, args):
             elbo.append(-loss.item())
             cat_mean.append(categorical_mean.item())
             kls.append(kl.item())
-            accuracy.append((torch.sum(pred == torch.squeeze(y)) / args.data_size).item())
+            accuracy.append((torch.sum(pred == torch.squeeze(y)) / args.batch_size).item())
 
     return np.mean(elbo), np.mean(cat_mean), np.mean(kls), np.mean(accuracy)

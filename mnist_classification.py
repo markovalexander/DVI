@@ -60,6 +60,7 @@ if __name__ == "__main__":
         step += 1
         optimizer.zero_grad()
 
+        elbo, cat_mean, kls, accuracy = [], [], [], []
         for data, y_train in tqdm.tqdm(train_loader):
             x_train = data.view(-1, 28 * 28).to(args.device)
             y_train = y_train.to(args.device)
@@ -76,15 +77,20 @@ if __name__ == "__main__":
             scheduler.step()
             optimizer.step()
 
-        if epoch % args.report_every == 0:
-            print("computing statistics....")
-            elbo, cat_mean, kl, accuracy = get_statistics(model, criterion,
-                                                          train_loader, step,
-                                                          args)
-            print(
-                "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
-                    elbo, cat_mean, kl))
-            print("train accuracy: {:.4f}".format(accuracy))
+            elbo.append(-loss.item())
+            cat_mean.append(categorical_mean.item())
+            kls.append(kl.item())
+            accuracy.append(
+                (torch.sum(pred == torch.squeeze(y_train)) / args.batch_size).item())
+
+        elbo = np.mean(elbo)
+        cat_mean = np.mean(cat_mean)
+        kl = np.mean(kls)
+        accuracy = np.mean(accuracy)
+        print(
+            "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
+                elbo, cat_mean, kl))
+        print("train accuracy: {:.4f}".format(accuracy))
 
         if epoch % 10 == 0 and epoch > 0:
             os.system('clear')

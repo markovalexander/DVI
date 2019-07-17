@@ -92,8 +92,8 @@ if __name__ == "__main__":
             if epoch == 1500:
                 torch.save(model.state_dict(), '1500epochs')
 
-        print(y_train[:5])
-        print(pred[:5])
+        print("y_train: ", y_train[:5])
+        print("pred: ", pred[:5])
         elbo = np.mean(elbo)
         cat_mean = np.mean(cat_mean)
         kl = np.mean(kls)

@@ -7,7 +7,7 @@ from torch import nn
 
 from losses import ClassificationLoss
 from models import LinearDVI, LeNetDVI
-from utils import load_mnist, one_hot_encoding, get_statistics
+from utils import load_mnist, one_hot_encoding, save_checkpoint
 
 import tqdm
 
@@ -55,6 +55,7 @@ if __name__ == "__main__":
                                                      gamma=args.gamma)
 
     step = 0
+    best_elbo = -1e10
 
     for epoch in range(args.epochs):
         print("epoch : {}".format(epoch))
@@ -84,16 +85,8 @@ if __name__ == "__main__":
             cat_mean.append(categorical_mean.item())
             kls.append(kl.item())
             accuracy.append(
-                (torch.sum(pred == torch.squeeze(y_train)) / args.batch_size).item())
-            if epoch == 120:
-                torch.save(model.state_dict(), '120epochs')
-            if epoch == 500:
-                torch.save(model.state_dict(), '500epochs')
-            if epoch == 1500:
-                torch.save(model.state_dict(), '1500epochs')
+                (torch.sum(pred == torch.squeeze(y_train), dtype=torch.float32) / args.batch_size).item())
 
-        print(y_train[:5])
-        print(pred[:5])
         elbo = np.mean(elbo)
         cat_mean = np.mean(cat_mean)
         kl = np.mean(kls)
@@ -102,6 +95,10 @@ if __name__ == "__main__":
             "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
                 elbo, cat_mean, kl))
         print("train accuracy: {:.4f}".format(accuracy))
+        save_checkpoint({
+            'epoch': epoch,
+            'state_dict': model.state_dict()
+        }, True, 'checkpoints/best_mnist.pth.tar')
 
         if epoch % 10 == 0 and epoch > 0:
             os.system('clear')

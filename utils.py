@@ -209,3 +209,10 @@ def get_statistics(model, criterion, loader, step, args):
             accuracy.append((torch.sum(pred == torch.squeeze(y)) / args.batch_size).item())
 
     return np.mean(elbo), np.mean(cat_mean), np.mean(kls), np.mean(accuracy)
+
+
+def save_checkpoint(state, is_best, filename):
+    """Save checkpoint if a new best is achieved"""
+    if is_best:
+        print("=> Saving a new best")
+        torch.save(state, filename)  # save checkpoint

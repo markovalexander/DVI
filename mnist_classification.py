@@ -97,7 +97,7 @@ if __name__ == "__main__":
                 elbo, cat_mean, kl))
         print("train accuracy: {:.4f}".format(accuracy))
 
-        if epoch > 100:
+        if epoch > int(args.epochs / 10):
             save_checkpoint({
                 'epoch': epoch,
                 'state_dict': model.state_dict(),

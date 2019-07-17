@@ -85,7 +85,7 @@ if __name__ == "__main__":
             cat_mean.append(categorical_mean.item())
             kls.append(kl.item())
             accuracy.append(
-                (torch.sum(pred == torch.squeeze(y_train),
+                (torch.sum(torch.squeeze(pred) == torch.squeeze(y_train),
                            dtype=torch.float32) / args.batch_size).item())
 
         elbo = np.mean(elbo)

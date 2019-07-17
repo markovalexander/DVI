@@ -54,7 +54,7 @@ if __name__ == "__main__":
                                                      gamma=args.gamma)
 
     step = 0
-    best_elbo = - 10 ** 9
+    best_test_acc = - 10 ** 9
 
     for epoch in range(args.epochs):
         print("epoch : {}".format(epoch))
@@ -119,10 +119,11 @@ if __name__ == "__main__":
                 'epoch': epoch,
                 'state_dict': model.state_dict(),
                 'elbo': elbo,
-                'accuracy': accuracy
-            }, elbo > best_elbo, 'checkpoints', 'best_mnist.pth.tar')
-            if elbo > best_elbo:
-                best_elbo = elbo
+                'train_accuracy': accuracy,
+                'test_accuracy' : test_acc
+            }, test_acc > best_test_acc, 'checkpoints', 'best_mnist.pth.tar')
+            if test_acc > best_test_acc:
+                test_acc = best_test_acc
 
         if epoch % 11 == 0 and epoch > 0:
             os.system('clear')

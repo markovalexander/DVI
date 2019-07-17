@@ -123,7 +123,7 @@ if __name__ == "__main__":
                 'test_accuracy' : test_acc
             }, test_acc > best_test_acc, 'checkpoints', 'best_mnist.pth.tar')
             if test_acc > best_test_acc:
-                test_acc = best_test_acc
+                best_test_acc = test_acc
 
         if epoch % 11 == 0 and epoch > 0:
             os.system('clear')

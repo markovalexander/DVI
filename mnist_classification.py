@@ -92,10 +92,27 @@ if __name__ == "__main__":
         cat_mean = np.mean(cat_mean)
         kl = np.mean(kls)
         accuracy = np.mean(accuracy)
+
+        test_acc = []
+        with torch.no_grad():
+            for data, y_test in test_loader:
+                x = data.view(-1, 28 * 28).to(args.device)
+                y = y_test.to(args.device)
+
+                y_ohe = one_hot_encoding(y[:, None], 10, args.device)
+                y_logits = model(x)
+
+                _, _, _, logsoftmax = criterion(y_logits,
+                                                y_ohe, step)
+                pred = torch.argmax(logsoftmax, dim=1)
+                test_acc.append((torch.sum(torch.squeeze(pred) == torch.squeeze(y),
+                           dtype=torch.float32) / args.batch_size).item())
+            test_acc = np.mean(test_acc)
+
         print(
             "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
                 elbo, cat_mean, kl))
-        print("train accuracy: {:.4f}".format(accuracy))
+        print("train accuracy: {:.4f}\t test_accuracy: {:.4f}".format(accuracy, test_acc))
 
         if epoch > int(args.epochs / 10):
             save_checkpoint({
@@ -107,5 +124,5 @@ if __name__ == "__main__":
             if elbo > best_elbo:
                 best_elbo = elbo
 
-        if epoch % 10 == 0 and epoch > 0:
+        if epoch % 11 == 0 and epoch > 0:
             os.system('clear')

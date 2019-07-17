@@ -120,7 +120,7 @@ if __name__ == "__main__":
                 'state_dict': model.state_dict(),
                 'elbo': elbo,
                 'accuracy': accuracy
-            }, elbo > best_elbo, 'checkpoints/best_mnist.pth.tar')
+            }, elbo > best_elbo, 'checkpoints', 'best_mnist.pth.tar')
             if elbo > best_elbo:
                 best_elbo = elbo
 

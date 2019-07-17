@@ -85,7 +85,15 @@ if __name__ == "__main__":
             kls.append(kl.item())
             accuracy.append(
                 (torch.sum(pred == torch.squeeze(y_train)) / args.batch_size).item())
+            if epoch == 120:
+                torch.save(model.state_dict(), '120epochs')
+            if epoch == 500:
+                torch.save(model.state_dict(), '500epochs')
+            if epoch == 1500:
+                torch.save(model.state_dict(), '1500epochs')
 
+        print(y_train[:5])
+        print(pred[:5])
         elbo = np.mean(elbo)
         cat_mean = np.mean(cat_mean)
         kl = np.mean(kls)

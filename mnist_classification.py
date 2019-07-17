@@ -3,13 +3,12 @@ import os
 
 import numpy as np
 import torch
+import tqdm
 from torch import nn
 
 from losses import ClassificationLoss
 from models import LinearDVI, LeNetDVI
 from utils import load_mnist, one_hot_encoding, save_checkpoint
-
-import tqdm
 
 np.random.seed(42)
 
@@ -55,7 +54,7 @@ if __name__ == "__main__":
                                                      gamma=args.gamma)
 
     step = 0
-    best_elbo = -1e10
+    best_elbo = - 10 ** 9
 
     for epoch in range(args.epochs):
         print("epoch : {}".format(epoch))
@@ -77,7 +76,8 @@ if __name__ == "__main__":
             loss.backward()
 
             if args.clip_grad > 0:
-                nn.utils.clip_grad.clip_grad_value_(model.parameters(), args.clip_grad)
+                nn.utils.clip_grad.clip_grad_value_(model.parameters(),
+                                                    args.clip_grad)
 
             optimizer.step()
 
@@ -85,7 +85,8 @@ if __name__ == "__main__":
             cat_mean.append(categorical_mean.item())
             kls.append(kl.item())
             accuracy.append(
-                (torch.sum(pred == torch.squeeze(y_train), dtype=torch.float32) / args.batch_size).item())
+                (torch.sum(pred == torch.squeeze(y_train),
+                           dtype=torch.float32) / args.batch_size).item())
 
         elbo = np.mean(elbo)
         cat_mean = np.mean(cat_mean)
@@ -95,10 +96,16 @@ if __name__ == "__main__":
             "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
                 elbo, cat_mean, kl))
         print("train accuracy: {:.4f}".format(accuracy))
-        save_checkpoint({
-            'epoch': epoch,
-            'state_dict': model.state_dict()
-        }, True, 'checkpoints/best_mnist.pth.tar')
+
+        if epoch > 100:
+            save_checkpoint({
+                'epoch': epoch,
+                'state_dict': model.state_dict(),
+                'elbo': elbo,
+                'accuracy': accuracy
+            }, elbo > best_elbo, 'checkpoints/best_mnist.pth.tar')
+            if elbo > best_elbo:
+                best_elbo = elbo
 
         if epoch % 10 == 0 and epoch > 0:
             os.system('clear')

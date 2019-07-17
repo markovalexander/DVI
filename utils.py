@@ -206,13 +206,27 @@ def get_statistics(model, criterion, loader, step, args):
             elbo.append(-loss.item())
             cat_mean.append(categorical_mean.item())
             kls.append(kl.item())
-            accuracy.append((torch.sum(pred == torch.squeeze(y)) / args.batch_size).item())
+            accuracy.append(
+                (torch.sum(pred == torch.squeeze(y)) / args.batch_size).item())
 
     return np.mean(elbo), np.mean(cat_mean), np.mean(kls), np.mean(accuracy)
 
 
-def save_checkpoint(state, is_best, filename):
+def save_checkpoint(state, is_best, dir, filename):
     """Save checkpoint if a new best is achieved"""
+    if not os.path.exists(dir):
+        os.mkdir(dir)
+
     if is_best:
         print("=> Saving a new best")
-        torch.save(state, filename)  # save checkpoint
+        torch.save(state, os.path.join(dir, filename))  # save checkpoint
+
+
+def load_checkpoint(model, filename):
+    checkpoint = torch.load(filename)
+
+    epoch = checkpoint['epoch']
+    accuracy = checkpoint['accuracy']
+    elbo = checkpoint['elbo']
+    model.load_state_dict(checkpoint['state_dict'])
+    return epoch, accuracy, elbo

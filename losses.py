@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from numpy import clip
 
-from bayesian_utils import logsoftmax_mean
+from bayesian_utils import logsoftmax_mean, sample_logsoftmax
 
 EPS = 1e-8
 
@@ -106,8 +106,9 @@ class ClassificationLoss(nn.Module):
         self.anneal = args.anneal_updates
         self.data_size = args.data_size
         self.n_samples = args.mc_samples
+        self._step = 0
 
-    def forward(self, logits, target, step):
+    def forward(self, logits, target, sample=False):
         """
         Compute <log p(y | D)> - kl
 
@@ -119,7 +120,10 @@ class ClassificationLoss(nn.Module):
             batch_logprob term
             total kl term
         """
-        logsoftmax = logsoftmax_mean(logits)
+        if not sample:
+            logsoftmax = logsoftmax_mean(logits)
+        else:
+            logsoftmax = sample_logsoftmax(logits, self.n_samples)
 
         assert not target.requires_grad
         kl = 0.0
@@ -132,7 +136,9 @@ class ClassificationLoss(nn.Module):
         logprob = torch.sum(target.type(logsoftmax.type()) * logsoftmax, dim=1)
         batch_logprob = torch.mean(logprob)
 
-        lmbda = clip((step - self.warmup) / self.anneal, 0, 1)
+        lmbda = clip((self._step - self.warmup) / self.anneal, 0, 1)
         L = lmbda * kl / self.data_size - batch_logprob
         return L, batch_logprob, kl / self.data_size, logsoftmax
 
+    def step(self):
+        self._step += 1

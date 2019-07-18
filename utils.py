@@ -212,14 +212,10 @@ def get_statistics(model, criterion, loader, step, args):
     return np.mean(elbo), np.mean(cat_mean), np.mean(kls), np.mean(accuracy)
 
 
-def save_checkpoint(state, is_best, dir, filename):
-    """Save checkpoint if a new best is achieved"""
+def save_checkpoint(state, dir, filename):
     if not os.path.exists(dir):
         os.mkdir(dir)
-
-    if is_best:
-        print("=> Saving a new best")
-        torch.save(state, os.path.join(dir, filename))  # save checkpoint
+    torch.save(state, os.path.join(dir, filename))
 
 
 def load_checkpoint(model, filename):

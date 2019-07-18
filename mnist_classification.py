@@ -138,10 +138,11 @@ if __name__ == "__main__":
                 'test_accuracy (mean_logsoftmax)': test_acc_log_prob
             }
 
-            save_checkpoint(state, True, 'checkpoints', 'epoch{}.pth.tar'.format(epoch))
+            save_checkpoint(state, 'checkpoints', 'epoch{}.pth.tar'.format(epoch))
             if test_acc_prob > best_test_acc:
                 best_test_acc = test_acc_prob
-                save_checkpoint(state, True, 'checkpoints', 'best.pth.tar')
+                print("=> Saving a new best")
+                save_checkpoint(state, 'checkpoints', 'best.pth.tar')
 
         if epoch % 11 == 0 and epoch > 0:
             os.system('clear')

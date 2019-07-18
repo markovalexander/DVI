@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
                 logits = model(x)
 
-                probs = sample_softmax(logits)
+                probs = sample_softmax(logits, n_samples=args.n_samples)
                 pred = torch.argmax(probs, dim=1)
                 test_acc_prob.append(
                     (torch.sum(torch.squeeze(pred) == torch.squeeze(y),

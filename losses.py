@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from numpy import clip
 
-from bayesian_utils import logsoftmax_mean, sample_logsoftmax
+from bayesian_utils import logsoftmax_mean, sample_logsoftmax, sample_softmax
 
 EPS = 1e-8
 
@@ -142,3 +142,8 @@ class ClassificationLoss(nn.Module):
 
     def step(self):
         self._step += 1
+
+    def predict_probs(self, logits):
+        with torch.no_grad():
+            probs = sample_softmax(logits, self.n_samples)
+        return probs

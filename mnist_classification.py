@@ -6,7 +6,7 @@ import torch
 import tqdm
 from torch import nn
 
-from losses import ClassificationLoss
+from losses import ClassificationLoss, logsoftmax_mean, sample_softmax
 from models import LinearDVI, LeNetDVI
 from utils import load_mnist, one_hot_encoding, save_checkpoint
 
@@ -96,36 +96,52 @@ if __name__ == "__main__":
         kl = np.mean(kls)
         accuracy = np.mean(accuracy)
 
-        test_acc = []
+        test_acc_prob = []
+        test_acc_log_prob = []
         with torch.no_grad():
             for data, y_test in test_loader:
                 x = data.view(-1, 28 * 28).to(args.device)
                 y = y_test.to(args.device)
 
                 logits = model(x)
-                probs = criterion.predict_probs(logits)
 
+                probs = sample_softmax(logits)
                 pred = torch.argmax(probs, dim=1)
-                test_acc.append((torch.sum(torch.squeeze(pred) == torch.squeeze(y),
-                           dtype=torch.float32) / args.batch_size).item())
+                test_acc_prob.append(
+                    (torch.sum(torch.squeeze(pred) == torch.squeeze(y),
+                               dtype=torch.float32) / args.batch_size).item())
 
-            test_acc = np.mean(test_acc)
+                log_probs = logsoftmax_mean(logits)
+                pred = torch.argmax(log_probs, dim=1)
+                test_acc_log_prob.append(
+                    (torch.sum(torch.squeeze(pred) == torch.squeeze(y),
+                               dtype=torch.float32) / args.batch_size).item())
+
+            test_acc_prob = np.mean(test_acc_prob)
+            test_acc_log_prob = np.mean(test_acc_log_prob)
 
         print(
             "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
                 elbo, cat_mean, kl))
-        print("train accuracy: {:.4f}\t test_accuracy: {:.4f}".format(accuracy, test_acc))
+        print(
+            "train accuracy: {:.4f}\t test_accuracy (sample probs): {:.4f}\t test_accuracy (mean logprob): {:.4f}".format(
+                accuracy,
+                test_acc_prob, test_acc_log_prob))
 
         if epoch > int(args.epochs / 10):
-            save_checkpoint({
+            state = {
                 'epoch': epoch,
                 'state_dict': model.state_dict(),
                 'elbo': elbo,
                 'train_accuracy': accuracy,
-                'test_accuracy': test_acc
-            }, test_acc > best_test_acc, 'checkpoints', 'best_mnist.pth.tar')
-            if test_acc > best_test_acc:
-                best_test_acc = test_acc
+                'test_accuracy (sample)': test_acc_prob,
+                'test_accuracy (mean_logsoftmax)': test_acc_log_prob
+            }
+
+            save_checkpoint(state, True, 'checkpoints', 'epoch{}.pth.tar'.format(epoch))
+            if test_acc_prob > best_test_acc:
+                best_test_acc = test_acc_prob
+                save_checkpoint(state, True, 'checkpoints', 'best.pth.tar')
 
         if epoch % 11 == 0 and epoch > 0:
             os.system('clear')

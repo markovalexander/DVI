@@ -1,4 +1,5 @@
 import math
+
 import torch
 import torch.nn as nn
 from numpy import clip
@@ -94,9 +95,7 @@ class RegressionLoss(nn.Module):
 
 
 class ClassificationLoss(nn.Module):
-    # TODO: add sampled_logsoftmax
     # TODO: check MC inference
-    # TODO: predict test with sampling probabilities, not log_probs (or try to count)
 
     def __init__(self, net, args):
         super().__init__()
@@ -105,10 +104,10 @@ class ClassificationLoss(nn.Module):
         self.warmup = args.warmup_updates
         self.anneal = args.anneal_updates
         self.data_size = args.data_size
-        self.n_samples = args.mc_samples
+        self.mcvi = args.mcvi
         self._step = 0
 
-    def forward(self, logits, target, sample=False):
+    def forward(self, logits, target):
         """
         Compute <log p(y | D)> - kl
 
@@ -120,7 +119,7 @@ class ClassificationLoss(nn.Module):
             batch_logprob term
             total kl term
         """
-        if not sample:
+        if not self.mcvi:
             logsoftmax = logsoftmax_mean(logits)
         else:
             logsoftmax = sample_logsoftmax(logits, self.n_samples)
@@ -142,7 +141,3 @@ class ClassificationLoss(nn.Module):
 
     def step(self):
         self._step += 1
-
-    def predict_probs(self, logits):
-        probs = sample_softmax(logits, self.n_samples)
-        return probs

@@ -4,6 +4,8 @@ import math
 
 import torch.nn.functional as F
 
+from torch.distributions import MultivariateNormal
+
 EPS = 1e-6
 
 
@@ -116,4 +118,14 @@ def logsoftmax_mean(y):
     return y[0] - logsumexp_mean(y)
 
 
+def sample_activations(x, n_samples):
+    x_mean, x_var = x[0], x[1]
+    sampler = MultivariateNormal(loc=x_mean, covariance_matrix=x_var)
+    samples = sampler.rsample(n_samples)
+    return samples
 
+
+def sample_logsoftamx(logits, n_samples):
+    activations = sample_activations(logits, n_samples)
+    logsoftmax = F.log_softmax(activations, dim=1)
+    return torch.mean(logsoftmax)

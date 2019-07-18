@@ -124,7 +124,7 @@ if __name__ == "__main__":
             "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
                 elbo, cat_mean, kl))
         print(
-            "train accuracy: {:.4f}\t test_accuracy (sample probs): {:.4f}\t test_accuracy (mean logprob): {:.4f}".format(
+            "train accuracy: {:.4f}\t test_accuracy (sample probs): {:.4f}\t test_accuracy (mean logprob): {:.4f}\n".format(
                 accuracy,
                 test_acc_prob, test_acc_log_prob))
 

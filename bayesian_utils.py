@@ -121,7 +121,7 @@ def logsoftmax_mean(y):
 def sample_activations(x, n_samples):
     x_mean, x_var = x[0], x[1]
     sampler = MultivariateNormal(loc=x_mean, covariance_matrix=x_var)
-    samples = sampler.rsample(n_samples)
+    samples = sampler.rsample([n_samples])
     return samples
 
 

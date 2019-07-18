@@ -59,8 +59,10 @@ if __name__ == "__main__":
 
     for epoch in range(args.epochs):
         print("epoch : {}".format(epoch))
+
         scheduler.step()
         criterion.step()
+
         optimizer.zero_grad()
 
         elbo, cat_mean, kls, accuracy = [], [], [], []
@@ -100,15 +102,13 @@ if __name__ == "__main__":
                 x = data.view(-1, 28 * 28).to(args.device)
                 y = y_test.to(args.device)
 
-                y_ohe = one_hot_encoding(y[:, None], 10, args.device)
-                y_logits = model(x)
+                logits = model(x)
+                probs = criterion.predict_probs(logits)
 
-                _, _, _, logsoftmax = criterion(y_logits,
-                                                y_ohe)
-
-                pred = torch.argmax(logsoftmax, dim=1)
+                pred = torch.argmax(probs, dim=1)
                 test_acc.append((torch.sum(torch.squeeze(pred) == torch.squeeze(y),
                            dtype=torch.float32) / args.batch_size).item())
+
             test_acc = np.mean(test_acc)
 
         print(

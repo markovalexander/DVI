@@ -144,6 +144,5 @@ class ClassificationLoss(nn.Module):
         self._step += 1
 
     def predict_probs(self, logits):
-        with torch.no_grad():
-            probs = sample_softmax(logits, self.n_samples)
+        probs = sample_softmax(logits, self.n_samples)
         return probs

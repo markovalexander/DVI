@@ -95,13 +95,16 @@ class RegressionLoss(nn.Module):
 
 class ClassificationLoss(nn.Module):
     # TODO: add sampled_logsoftmax
+    # TODO: check MC inference
+    # TODO: predict test with sampling probabilities, not log_probs (or try to count)
+
     def __init__(self, net, args):
         super().__init__()
 
         self.net = net
         self.warmup = args.warmup_updates
         self.anneal = args.anneal_updates
-        self.batch_size = args.batch_size
+        self.data_size = args.data_size
         self.n_samples = args.mc_samples
 
     def forward(self, logits, target, step):
@@ -130,6 +133,6 @@ class ClassificationLoss(nn.Module):
         batch_logprob = torch.mean(logprob)
 
         lmbda = clip((step - self.warmup) / self.anneal, 0, 1)
-        L = lmbda * kl / self.batch_size - batch_logprob
-        return L, batch_logprob, kl / self.batch_size, logsoftmax
+        L = lmbda * kl / self.data_size - batch_logprob
+        return L, batch_logprob, kl / self.data_size, logsoftmax
 

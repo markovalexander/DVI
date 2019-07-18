@@ -38,9 +38,10 @@ if __name__ == "__main__":
         'cuda:{}'.format(args.device) if torch.cuda.is_available() else 'cpu')
 
     os.system("clear")
-    print(args)
 
     train_loader, test_loader = load_mnist(args)
+    args.data_size = len(train_loader.dataset)
+    print(args)
 
     if args.arch.strip().lower() == "fc":
         model = LinearDVI(args).to(args.device)
@@ -120,7 +121,7 @@ if __name__ == "__main__":
                 'state_dict': model.state_dict(),
                 'elbo': elbo,
                 'train_accuracy': accuracy,
-                'test_accuracy' : test_acc
+                'test_accuracy': test_acc
             }, test_acc > best_test_acc, 'checkpoints', 'best_mnist.pth.tar')
             if test_acc > best_test_acc:
                 best_test_acc = test_acc

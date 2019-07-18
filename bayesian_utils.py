@@ -128,10 +128,10 @@ def sample_activations(x, n_samples):
 def sample_logsoftmax(logits, n_samples):
     activations = sample_activations(logits, n_samples)
     logsoftmax = F.log_softmax(activations, dim=1)
-    return torch.mean(logsoftmax)
+    return torch.mean(logsoftmax, dim=0)
 
 
 def sample_softmax(logits, n_samples):
     activations = sample_activations(logits, n_samples)
     softmax = F.softmax(activations, dim=1)
-    return torch.mean(softmax)
+    return torch.mean(softmax, dim=0)

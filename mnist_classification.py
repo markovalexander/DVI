@@ -31,7 +31,9 @@ parser.add_argument('--milestones', nargs='+', type=int,
 parser.add_argument('--mc_samples', default=1, type=int)
 parser.add_argument('--report_every', type=int, default=100)
 parser.add_argument('--clip_grad', type=float, default=0.1)
+parser.add_argument('--checkpoint_dir', type=str, default='')
 
+# TODO: add normal logger
 if __name__ == "__main__":
     args = parser.parse_args()
     args.device = torch.device(
@@ -42,6 +44,11 @@ if __name__ == "__main__":
     train_loader, test_loader = load_mnist(args)
     args.data_size = len(train_loader.dataset)
     print(args)
+
+    if args.checkpoint_dir == '':
+        args.checkpoint_dir = 'checkpoint'
+    else:
+        args.checkpoint_dir = os.path.join('checkpoint', args.checkpoint_dir)
 
     if args.arch.strip().lower() == "fc":
         model = LinearDVI(args).to(args.device)
@@ -56,6 +63,8 @@ if __name__ == "__main__":
 
     step = 0
     best_test_acc = - 10 ** 9
+
+    print(args.checkpoint_dir)
 
     for epoch in range(args.epochs):
         print("epoch : {}".format(epoch))
@@ -138,11 +147,11 @@ if __name__ == "__main__":
                 'test_accuracy (mean_logsoftmax)': test_acc_log_prob
             }
 
-            save_checkpoint(state, 'checkpoints', 'epoch{}.pth.tar'.format(epoch))
+            save_checkpoint(state, args.checkpoint_dir, 'epoch{}.pth.tar'.format(epoch))
             if test_acc_prob > best_test_acc:
                 best_test_acc = test_acc_prob
                 print("=> Saving a new best")
-                save_checkpoint(state, 'checkpoints', 'best.pth.tar')
+                save_checkpoint(state, args.checkpoint_dir, 'best.pth.tar')
 
         if epoch % 11 == 0 and epoch > 0:
             os.system('clear')

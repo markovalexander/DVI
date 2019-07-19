@@ -251,5 +251,6 @@ def prepare_directory(args):
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     os.system('rm -rf %s/*' % args.checkpoint_dir)
 
+    print(args)
     with open(os.path.join(args.checkpoint_dir, 'hypers'), 'w') as f:
         print(args, file=f)

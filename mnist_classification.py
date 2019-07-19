@@ -1,14 +1,13 @@
 import argparse
-import os
 
 import numpy as np
 import torch
+import torch.nn as nn
 import tqdm
-from torch import nn
 
 from losses import ClassificationLoss, logsoftmax_mean, sample_softmax
 from models import LinearDVI, LeNetDVI
-from utils import load_mnist, one_hot_encoding, save_checkpoint
+from utils import load_mnist, save_checkpoint, report, prepare_directory, one_hot_encoding
 
 np.random.seed(42)
 
@@ -29,29 +28,19 @@ parser.add_argument('--epochs', type=int, default=23000)
 parser.add_argument('--milestones', nargs='+', type=int,
                     default=[3000, 5000, 9000, 13000])
 parser.add_argument('--mc_samples', default=1, type=int)
-parser.add_argument('--report_every', type=int, default=100)
 parser.add_argument('--clip_grad', type=float, default=0.1)
 parser.add_argument('--checkpoint_dir', type=str, default='')
 
-# TODO: add normal logger
+
 if __name__ == "__main__":
     args = parser.parse_args()
     args.device = torch.device(
         'cuda:{}'.format(args.device) if torch.cuda.is_available() else 'cpu')
 
-    os.system("clear")
-
     train_loader, test_loader = load_mnist(args)
     args.data_size = len(train_loader.dataset)
-    print(args)
 
-    if args.checkpoint_dir == '':
-        args.checkpoint_dir = 'checkpoints'
-    else:
-        args.checkpoint_dir = os.path.join('checkpoints', args.checkpoint_dir)
-
-    if not os.path.exists(args.checkpoint_dir):
-        os.mkdir(args.checkpoint_dir)
+    prepare_directory(args)
 
     if args.arch.strip().lower() == "fc":
         model = LinearDVI(args).to(args.device)
@@ -67,11 +56,7 @@ if __name__ == "__main__":
     step = 0
     best_test_acc = - 10 ** 9
 
-    print(args.checkpoint_dir)
-
     for epoch in range(args.epochs):
-        print("epoch : {}".format(epoch))
-
         scheduler.step()
         criterion.step()
 
@@ -132,29 +117,21 @@ if __name__ == "__main__":
             test_acc_prob = np.mean(test_acc_prob)
             test_acc_log_prob = np.mean(test_acc_log_prob)
 
-        print(
-            "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}".format(
-                elbo, cat_mean, kl))
-        print(
-            "train accuracy: {:.4f}\t test_accuracy (sample probs): {:.4f}\t test_accuracy (mean logprob): {:.4f}\n".format(
-                accuracy,
-                test_acc_prob, test_acc_log_prob))
+        report(args.checkpoint_dir, epoch, elbo, cat_mean, kls, accuracy,
+               test_acc_prob, test_acc_log_prob)
 
-        if epoch > int(args.epochs / 10):
-            state = {
-                'epoch': epoch,
-                'state_dict': model.state_dict(),
-                'elbo': elbo,
-                'train_accuracy': accuracy,
-                'test_accuracy (sample)': test_acc_prob,
-                'test_accuracy (mean_logsoftmax)': test_acc_log_prob
-            }
+        state = {
+            'epoch': epoch,
+            'state_dict': model.state_dict(),
+            'elbo': elbo,
+            'train_accuracy': accuracy,
+            'test_accuracy (sample)': test_acc_prob,
+            'test_accuracy (mean_logsoftmax)': test_acc_log_prob
+        }
 
-            save_checkpoint(state, args.checkpoint_dir, 'epoch{}.pth.tar'.format(epoch))
-            if test_acc_prob > best_test_acc:
-                best_test_acc = test_acc_prob
-                print("=> Saving a new best")
-                save_checkpoint(state, args.checkpoint_dir, 'best.pth.tar')
-
-        if epoch % 11 == 0 and epoch > 0:
-            os.system('clear')
+        save_checkpoint(state, args.checkpoint_dir,
+                        'epoch{}.pth.tar'.format(epoch))
+        if test_acc_prob > best_test_acc:
+            best_test_acc = test_acc_prob
+            print("=> Saving a new best")
+            save_checkpoint(state, args.checkpoint_dir, 'best.pth.tar')

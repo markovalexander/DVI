@@ -1,5 +1,6 @@
 import math
 import os
+import glob
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -224,3 +225,31 @@ def load_checkpoint(model, filename):
     elbo = checkpoint['elbo']
     model.load_state_dict(checkpoint['state_dict'])
     return epoch, accuracy, elbo
+
+
+def report(dir, epoch, elbo, cat_mean, kl, accuracy, test_acc_prob,
+           test_acc_log_prob):
+
+    message = "epoch: {}\n".format(epoch)
+    message += "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}\n".format(
+        epoch, elbo, cat_mean, kl)
+    message += "train accuracy: {:.4f}\t".format(accuracy)
+    message += "test_accuracy(sample probs): {:.4f}\t".format(test_acc_prob)
+    message += "test_accuracy(mean logprob): {:.4f}\n".format(test_acc_log_prob)
+    print(message)
+    with open(os.path.join(dir, 'report'), 'a') as f:
+        print(message, file=f)
+
+
+def prepare_directory(args):
+
+    if args.checkpoint_dir == '':
+        args.checkpoint_dir = 'checkpoints'
+    else:
+        args.checkpoint_dir = os.path.join('checkpoints', args.checkpoint_dir)
+
+    os.makedirs(args.checkpoint_dir, exist_ok=True)
+    os.system('rm -rf %s/*' % args.checkpoint_dir)
+
+    with open(os.path.join(args.checkpoint_dir, 'hypers'), 'w') as f:
+        print(args, file=f)

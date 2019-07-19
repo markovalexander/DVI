@@ -213,8 +213,6 @@ def get_statistics(model, criterion, loader, step, args):
 
 
 def save_checkpoint(state, dir, filename):
-    if not os.path.exists(dir):
-        os.mkdir(dir)
     torch.save(state, os.path.join(dir, filename))
 
 

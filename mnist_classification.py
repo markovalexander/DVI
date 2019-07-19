@@ -46,9 +46,12 @@ if __name__ == "__main__":
     print(args)
 
     if args.checkpoint_dir == '':
-        args.checkpoint_dir = 'checkpoint'
+        args.checkpoint_dir = 'checkpoints'
     else:
-        args.checkpoint_dir = os.path.join('checkpoint', args.checkpoint_dir)
+        args.checkpoint_dir = os.path.join('checkpoints', args.checkpoint_dir)
+
+    if not os.path.exists(args.checkpoint_dir):
+        os.mkdir(args.checkpoint_dir)
 
     if args.arch.strip().lower() == "fc":
         model = LinearDVI(args).to(args.device)

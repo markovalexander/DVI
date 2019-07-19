@@ -56,6 +56,7 @@ if __name__ == "__main__":
     step = 0
     best_test_acc = - 10 ** 9
 
+    print('epoch: 0')
     for epoch in range(args.epochs):
         scheduler.step()
         criterion.step()
@@ -117,7 +118,7 @@ if __name__ == "__main__":
             test_acc_prob = np.mean(test_acc_prob)
             test_acc_log_prob = np.mean(test_acc_log_prob)
 
-        report(args.checkpoint_dir, epoch, elbo, cat_mean, kls, accuracy,
+        report(args.checkpoint_dir, epoch, elbo, cat_mean, kl, accuracy,
                test_acc_prob, test_acc_log_prob)
 
         state = {

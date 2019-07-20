@@ -2,9 +2,10 @@ import math
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from numpy import clip
 
-from bayesian_utils import logsoftmax_mean, sample_logsoftmax, sample_softmax
+from bayesian_utils import logsoftmax_mean
 
 EPS = 1e-8
 
@@ -122,7 +123,8 @@ class ClassificationLoss(nn.Module):
         if not self.mcvi:
             logsoftmax = logsoftmax_mean(logits)
         else:
-            logsoftmax = sample_logsoftmax(logits, self.n_samples)
+            logsoftmax = F.log_softmax(logits, dim=1)
+            logsoftmax = torch.mean(logsoftmax, dim=0)
 
         assert not target.requires_grad
         kl = 0.0

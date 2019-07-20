@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import numpy as np
 import torch
@@ -7,7 +8,8 @@ import tqdm
 
 from losses import ClassificationLoss, logsoftmax_mean, sample_softmax
 from models import LinearDVI, LeNetDVI
-from utils import load_mnist, save_checkpoint, report, prepare_directory, one_hot_encoding
+from utils import load_mnist, save_checkpoint, report, prepare_directory, \
+    one_hot_encoding
 
 np.random.seed(42)
 
@@ -31,7 +33,6 @@ parser.add_argument('--mc_samples', default=1, type=int)
 parser.add_argument('--clip_grad', type=float, default=0.1)
 parser.add_argument('--checkpoint_dir', type=str, default='')
 
-
 if __name__ == "__main__":
     args = parser.parse_args()
     args.device = torch.device(
@@ -53,7 +54,7 @@ if __name__ == "__main__":
                                                      args.milestones,
                                                      gamma=args.gamma)
 
-    step = 0
+    best_epoch = 0
     best_test_acc = - 10 ** 9
 
     print('epoch: 0')
@@ -134,5 +135,10 @@ if __name__ == "__main__":
                         'epoch{}.pth.tar'.format(epoch))
         if test_acc_prob > best_test_acc:
             best_test_acc = test_acc_prob
+            best_epoch = epoch
             print("=> Saving a new best\n")
             save_checkpoint(state, args.checkpoint_dir, 'best.pth.tar')
+
+    with open(os.path.join(args.checkpoint_dir, 'report'), 'a') as f:
+        print('\nBest Accuracy: {:.4f}\tBest epoch: {}'.format(best_test_acc,
+                                                               best_epoch))

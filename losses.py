@@ -122,8 +122,7 @@ class ClassificationLoss(nn.Module):
         if not self.mcvi:
             logsoftmax = logsoftmax_mean(logits)
         else:
-            logsoftmax = F.log_softmax(logits, dim=1)
-            logsoftmax = torch.mean(logsoftmax, dim=0)
+            logsoftmax = F.log_softmax(logits[0], dim=1)
 
         assert not target.requires_grad
         kl = 0.0

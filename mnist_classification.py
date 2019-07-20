@@ -4,6 +4,8 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
 import tqdm
 
 from losses import ClassificationLoss, logsoftmax_mean, sample_softmax
@@ -104,13 +106,20 @@ if __name__ == "__main__":
 
                 logits = model(x)
 
-                probs = sample_softmax(logits, n_samples=args.mc_samples)
+                if args.mcvi:
+                    probs = F.softmax(logits[0], dim=1)
+                else:
+                    probs = sample_softmax(logits, n_samples=args.mc_samples)
+
                 pred = torch.argmax(probs, dim=1)
                 test_acc_prob.append(
                     (torch.sum(torch.squeeze(pred) == torch.squeeze(y),
                                dtype=torch.float32) / args.batch_size).item())
 
-                log_probs = logsoftmax_mean(logits)
+                if args.mcvi:
+                    log_probs = F.log_softmax(logits[0], dim=1)
+                else:
+                    log_probs = logsoftmax_mean(logits)
                 pred = torch.argmax(log_probs, dim=1)
                 test_acc_log_prob.append(
                     (torch.sum(torch.squeeze(pred) == torch.squeeze(y),

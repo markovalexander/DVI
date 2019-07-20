@@ -95,8 +95,6 @@ class RegressionLoss(nn.Module):
 
 
 class ClassificationLoss(nn.Module):
-    # TODO: check MC inference
-
     def __init__(self, net, args):
         super().__init__()
 
@@ -105,7 +103,9 @@ class ClassificationLoss(nn.Module):
         self.anneal = args.anneal_updates
         self.data_size = args.data_size
         self.mcvi = args.mcvi
+        self.n_samples = args.mc_samples
         self._step = 0
+
 
     def forward(self, logits, target):
         """

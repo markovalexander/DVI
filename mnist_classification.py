@@ -57,7 +57,7 @@ if __name__ == "__main__":
     best_epoch = 0
     best_test_acc = - 10 ** 9
 
-    print('epoch: 0')
+    print('\nepoch: 0')
     for epoch in range(args.epochs):
         scheduler.step()
         criterion.step()

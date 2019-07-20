@@ -11,6 +11,9 @@ class LinearDVI(nn.Module):
         self.fc2 = ReluGaussian(300, 100)
         self.fc3 = ReluGaussian(100, 10)
 
+        if args.mcvi:
+            self.mcvi()
+
     def forward(self, x):
         x = self.fc1(x)
         x = self.fc2(x)
@@ -28,6 +31,5 @@ class LinearDVI(nn.Module):
 
 
 class LeNetDVI(nn.Module):
-
     def __init__(self, args):
         raise NotImplementedError("not implemented yet")

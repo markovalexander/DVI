@@ -235,7 +235,7 @@ def report(dir, epoch, elbo, cat_mean, kl, accuracy, test_acc_prob,
         elbo, cat_mean, kl)
     message += "train accuracy: {:.4f}\t".format(accuracy)
     message += "test_accuracy(sample probs): {:.4f}\t".format(test_acc_prob)
-    message += "test_accuracy(mean logprob): {:.4f}\n".format(test_acc_log_prob)
+    message += "test_accuracy(mean logprob): {:.4f}".format(test_acc_log_prob)
     print(message)
     with open(os.path.join(dir, 'report'), 'a') as f:
         print(message, file=f)

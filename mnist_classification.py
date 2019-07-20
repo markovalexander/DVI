@@ -134,5 +134,5 @@ if __name__ == "__main__":
                         'epoch{}.pth.tar'.format(epoch))
         if test_acc_prob > best_test_acc:
             best_test_acc = test_acc_prob
-            print("=> Saving a new best")
+            print("=> Saving a new best\n")
             save_checkpoint(state, args.checkpoint_dir, 'best.pth.tar')

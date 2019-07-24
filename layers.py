@@ -349,15 +349,20 @@ class MeanFieldConv(nn.Module):
 
             s1 = s2 = 0.1
             self._weight_prior = {
-                'mean': nn.Parameter(torch.zeros_like(self.weights_mean), requires_grad=False),
-                'var': nn.Parameter(torch.ones_like(self.weights_log_var), requires_grad=False) * s1
+                'mean': nn.Parameter(torch.zeros_like(self.weights_mean),
+                                     requires_grad=False),
+                'var': nn.Parameter(torch.ones_like(self.weights_log_var),
+                                    requires_grad=False) * s1
             }
             self._bias_prior = {
-                'mean': nn.Parameter(torch.zeros_like(self.bias_mean, requires_grad=False)),
-                'var': nn.Parameter(torch.ones_like(self.bias_log_var), requires_grad=False) * s2
+                'mean': nn.Parameter(
+                    torch.zeros_like(self.bias_mean, requires_grad=False)),
+                'var': nn.Parameter(torch.ones_like(self.bias_log_var),
+                                    requires_grad=False) * s2
             }
         else:
-            raise NotImplementedError("{} prior is not supported".format(self.prior))
+            raise NotImplementedError(
+                "{} prior is not supported".format(self.prior))
 
     def initialize_weights(self):
         nn.init.kaiming_normal_(self.weights_mean)
@@ -368,7 +373,8 @@ class MeanFieldConv(nn.Module):
 
     def compute_kl(self):
         weights_kl = KL_GG(self.weights_mean, torch.exp(self.weights_log_var),
-                           self._weight_prior['mean'], self._weight_prior['var'])
+                           self._weight_prior['mean'],
+                           self._weight_prior['var'])
         bias_kl = KL_GG(self.bias_mean, torch.exp(self.bias_log_var),
                         self._bias_prior['mean'], self._bias_prior['var'])
         return weights_kl + bias_kl
@@ -403,11 +409,12 @@ class MeanFieldConv(nn.Module):
         weights_var = torch.exp(self.weights_log_var)
         bias_var = torch.exp(self.bias_log_var)
 
-        z_mean = F.conv2d(x_mean, self.weights_mean, self.bias_mean, self.stride,
+        z_mean = F.conv2d(x_mean, self.weights_mean, self.bias_mean,
+                          self.stride,
                           self.padding)
-        z_var = F.conv2d(x_var, weights_var, bias_var, self.stride, self.padding)
+        z_var = F.conv2d(x_var, weights_var, bias_var, self.stride,
+                         self.padding)
         return z_mean, z_var
-
 
     def __mcvi_forward(self, x):
         raise NotImplementedError()

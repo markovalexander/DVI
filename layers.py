@@ -321,7 +321,7 @@ class HeavisideGaussian(nn.Module):
             print('Using MCVI')
 
 
-class MeanFieldConv(nn.Module):
+class MeanFieldConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1,
                  padding=0,
                  prior='DiagonalGaussian', certain=False):
@@ -333,9 +333,9 @@ class MeanFieldConv(nn.Module):
         self.padding = padding
 
         self.weights_mean = nn.Parameter(
-            torch.Tensor(in_channels, out_channels, kernel_size, kernel_size))
+            torch.Tensor(out_channels, in_channels, kernel_size, kernel_size))
         self.weights_log_var = nn.Parameter(
-            torch.Tensor(in_channels, out_channels, kernel_size, kernel_size))
+            torch.Tensor(out_channels, in_channels, kernel_size, kernel_size))
 
         self.bias_mean = nn.Parameter(torch.Tensor(out_channels))
         self.bias_log_var = nn.Parameter(torch.Tensor(out_channels))
@@ -366,10 +366,10 @@ class MeanFieldConv(nn.Module):
 
     def initialize_weights(self):
         nn.init.kaiming_normal_(self.weights_mean)
-        nn.init.kaiming_normal_(self.b_mean)
+        nn.init.normal_(self.bias_mean)
 
-        nn.init.kaiming_normal_(self.A_logvar)
-        nn.init.kaiming_normal_(self.b_logvar)
+        nn.init.kaiming_normal_(self.weights_log_var)
+        nn.init.normal_(self.bias_log_var)
 
     def compute_kl(self):
         weights_kl = KL_GG(self.weights_mean, torch.exp(self.weights_log_var),
@@ -399,12 +399,15 @@ class MeanFieldConv(nn.Module):
 
     def __det_forward(self, x):
 
-        if self.certain:
+        if self.certain and isinstance(x, tuple):
             x_mean = x[0]
             x_var = x_mean * x_mean
-        else:
+        elif not self.certain:
             x_mean = x[0]
             x_var = x[1]
+        else:
+            x_mean = x
+            x_var = x_mean * x_mean
 
         weights_var = torch.exp(self.weights_log_var)
         bias_var = torch.exp(self.bias_log_var)

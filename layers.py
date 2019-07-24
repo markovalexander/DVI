@@ -323,6 +323,7 @@ class HeavisideGaussian(nn.Module):
 
 class MeanFieldConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1,
+                 activation='relu',
                  padding=0,
                  prior='DiagonalGaussian', certain=False):
         super().__init__()
@@ -343,6 +344,7 @@ class MeanFieldConv2d(nn.Module):
         self.prior = prior
         self.initialize_weights()
         self.construct_priors()
+        self.activation = activation.strip().lower()
 
     def construct_priors(self):
         if self.prior == "DiagonalGaussian":
@@ -412,6 +414,8 @@ class MeanFieldConv2d(nn.Module):
         weights_var = torch.exp(self.weights_log_var)
         bias_var = torch.exp(self.bias_log_var)
 
+        x_mean, x_var = self._activation(x_mean, x_var)
+
         z_mean = F.conv2d(x_mean, self.weights_mean, self.bias_mean,
                           self.stride,
                           self.padding)
@@ -421,3 +425,9 @@ class MeanFieldConv2d(nn.Module):
 
     def __mcvi_forward(self, x):
         raise NotImplementedError()
+
+    def _activation(self, x_mean, x_var):
+        if self.activation == 'relu':
+            raise NotImplementedError("activations are not supported yet")
+        else:
+            return x_mean, x_var

@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 
-from bayesian_utils import KL_GG, softrelu, delta, heaviside_q, gaussian_cdf, matrix_diag_part
+from bayesian_utils import KL_GG, softrelu, delta, heaviside_q, gaussian_cdf, \
+    matrix_diag_part
 
 EPS = 1e-6
 
@@ -48,11 +49,15 @@ class LinearGaussian(nn.Module):
             s1 = s2 = 0.1
 
             self._prior_A = {
-                'mean': torch.zeros_like(self.A_mean, requires_grad=False).to(device),
-                'var': torch.ones_like(self.A_logvar, requires_grad=False).to(device) * s2}
+                'mean': torch.zeros_like(self.A_mean, requires_grad=False).to(
+                    device),
+                'var': torch.ones_like(self.A_logvar, requires_grad=False).to(
+                    device) * s2}
             self._prior_b = {
-                'mean': torch.zeros_like(self.b_mean, requires_grad=False).to(device),
-                'var': torch.ones_like(self.b_logvar, requires_grad=False).to(device) * s1}
+                'mean': torch.zeros_like(self.b_mean, requires_grad=False).to(
+                    device),
+                'var': torch.ones_like(self.b_logvar, requires_grad=False).to(
+                    device) * s1}
         else:
             raise NotImplementedError("{} prior is not supported".format(prior))
 
@@ -194,7 +199,8 @@ class ReluGaussian(nn.Module):
         """
 
         super().__init__()
-        self.linear = LinearGaussian(in_features, out_features, certain, prior, device=device)
+        self.linear = LinearGaussian(in_features, out_features, certain, prior,
+                                     device=device)
         self.certain = certain
         self.use_dvi = True
 
@@ -313,3 +319,95 @@ class HeavisideGaussian(nn.Module):
             print('Using determenistic mode')
         else:
             print('Using MCVI')
+
+
+class MeanFieldConv(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1,
+                 padding=0,
+                 prior='DiagonalGaussian', certain=False):
+        super().__init__()
+
+        self.use_det = True
+        self.certain = certain
+        self.stride = stride
+        self.padding = padding
+
+        self.weights_mean = nn.Parameter(
+            torch.Tensor(in_channels, out_channels, kernel_size, kernel_size))
+        self.weights_log_var = nn.Parameter(
+            torch.Tensor(in_channels, out_channels, kernel_size, kernel_size))
+
+        self.bias_mean = nn.Parameter(torch.Tensor(out_channels))
+        self.bias_log_var = nn.Parameter(torch.Tensor(out_channels))
+
+        self.prior = prior
+        self.initialize_weights()
+        self.construct_priors()
+
+    def construct_priors(self):
+        if self.prior == "DiagonalGaussian":
+
+            s1 = s2 = 0.1
+            self._weight_prior = {
+                'mean': nn.Parameter(torch.zeros_like(self.weights_mean), requires_grad=False),
+                'var': nn.Parameter(torch.ones_like(self.weights_log_var), requires_grad=False) * s1
+            }
+            self._bias_prior = {
+                'mean': nn.Parameter(torch.zeros_like(self.bias_mean, requires_grad=False)),
+                'var': nn.Parameter(torch.ones_like(self.bias_log_var), requires_grad=False) * s2
+            }
+        else:
+            raise NotImplementedError("{} prior is not supported".format(self.prior))
+
+    def initialize_weights(self):
+        nn.init.kaiming_normal_(self.weights_mean)
+        nn.init.kaiming_normal_(self.b_mean)
+
+        nn.init.kaiming_normal_(self.A_logvar)
+        nn.init.kaiming_normal_(self.b_logvar)
+
+    def compute_kl(self):
+        weights_kl = KL_GG(self.weights_mean, torch.exp(self.weights_log_var),
+                           self._weight_prior['mean'], self._weight_prior['var'])
+        bias_kl = KL_GG(self.bias_mean, torch.exp(self.bias_log_var),
+                        self._bias_prior['mean'], self._bias_prior['var'])
+        return weights_kl + bias_kl
+
+    def get_mode(self):
+        if self.use_det:
+            return "Determenistic"
+        else:
+            return "MonteCarlo"
+
+    def determenistic(self, mode=True):
+        self.use_det = mode
+
+    def mcvi(self, mode=True):
+        self.use_det = not mode
+
+    def forward(self, x):
+        if self.use_det:
+            return self.__det_forward(x)
+        else:
+            return self.__mcvi_forward(x)
+
+    def __det_forward(self, x):
+
+        if self.certain:
+            x_mean = x[0]
+            x_var = x_mean * x_mean
+        else:
+            x_mean = x[0]
+            x_var = x[1]
+
+        weights_var = torch.exp(self.weights_log_var)
+        bias_var = torch.exp(self.bias_log_var)
+
+        z_mean = F.conv2d(x_mean, self.weights_mean, self.bias_mean, self.stride,
+                          self.padding)
+        z_var = F.conv2d(x_var, weights_var, bias_var, self.stride, self.padding)
+        return z_mean, z_var
+
+
+    def __mcvi_forward(self, x):
+        raise NotImplementedError()

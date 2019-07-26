@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 import tqdm
 
 from losses import ClassificationLoss, logsoftmax_mean, sample_softmax
@@ -17,6 +16,21 @@ np.random.seed(42)
 
 EPS = 1e-6
 
+# TODO: batch_size поменьше
+
+# TODO: для предсказания занулить дисперсии и использовать мат.ожидания как веса
+# TODO: (если это плохо работает, то это индикатор оч большой дисперсии)
+
+# TODO: посмотреть галазами на сэмплы внутри слоев (после того как все научится)
+
+# TODO: dvi_train_mcvi_test
+
+# TODO: 1 слой а не 3, для линейной модели, и с склеарном сравнить линейным
+
+# TODO: вообще без кл
+
+# TODO: попрофилировать
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--batch_size', type=int, default=64)
@@ -25,7 +39,7 @@ parser.add_argument('--arch', type=str, default="fc")
 parser.add_argument('--device', type=int, default=0)
 parser.add_argument('--anneal_updates', type=int, default=1000)
 parser.add_argument('--warmup_updates', type=int, default=14000)
-parser.add_argument('--lr', type=float, default=1e-2)
+parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--gamma', type=float, default=0.5,
                     help='lr decrease rate in MultiStepLR scheduler')
 parser.add_argument('--epochs', type=int, default=23000)
@@ -59,15 +73,17 @@ if __name__ == "__main__":
     best_epoch = 0
     best_test_acc = - 10 ** 9
 
-    print('\nepoch: 0')
     for epoch in range(args.epochs):
+        print('\nepoch:', epoch)
         scheduler.step()
         criterion.step()
 
-        optimizer.zero_grad()
+
 
         elbo, cat_mean, kls, accuracy = [], [], [], []
         for data, y_train in tqdm.tqdm(train_loader):
+            optimizer.zero_grad()
+
             x_train = data.view(-1, 28 * 28).to(args.device)
             y_train = y_train.to(args.device)
 

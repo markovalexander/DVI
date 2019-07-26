@@ -241,7 +241,7 @@ def report(dir, elbo, cat_mean, kl, accuracy, test_acc_prob,
 def prepare_directory(args):
 
     if args.checkpoint_dir == '':
-        args.checkpoint_dir = 'checkpoints'
+        args.checkpoint_dir = os.path.join('checkpoints', 'last_expirement')
     else:
         args.checkpoint_dir = os.path.join('checkpoints', args.checkpoint_dir)
 

@@ -78,8 +78,6 @@ if __name__ == "__main__":
         scheduler.step()
         criterion.step()
 
-
-
         elbo, cat_mean, kls, accuracy = [], [], [], []
         for data, y_train in tqdm.tqdm(train_loader):
             optimizer.zero_grad()
@@ -144,7 +142,7 @@ if __name__ == "__main__":
             test_acc_prob = np.mean(test_acc_prob)
             test_acc_log_prob = np.mean(test_acc_log_prob)
 
-        report(args.checkpoint_dir, epoch, elbo, cat_mean, kl, accuracy,
+        report(args.checkpoint_dir, elbo, cat_mean, kl, accuracy,
                test_acc_prob, test_acc_log_prob)
 
         state = {

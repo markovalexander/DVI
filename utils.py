@@ -226,11 +226,9 @@ def load_checkpoint(model, filename):
     return epoch, accuracy, elbo
 
 
-def report(dir, epoch, elbo, cat_mean, kl, accuracy, test_acc_prob,
+def report(dir, elbo, cat_mean, kl, accuracy, test_acc_prob,
            test_acc_log_prob):
-
-    message = "\nepoch: {}\n".format(epoch)
-    message += "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}\n".format(
+    message = "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}\n".format(
         elbo, cat_mean, kl)
     message += "train accuracy: {:.4f}\t".format(accuracy)
     message += "test_accuracy(sample probs): {:.4f}\t".format(test_acc_prob)

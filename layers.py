@@ -201,8 +201,7 @@ class ReluGaussian(nn.Module):
         """
 
         super().__init__()
-        self.linear = LinearGaussian(in_features, out_features, certain, prior,
-                                     device=device)
+        self.linear = LinearGaussian(in_features, out_features, certain, prior)
         self.certain = certain
         self.use_dvi = True
 

@@ -41,8 +41,8 @@ class LinearGaussian(nn.Module):
         nn.init.xavier_normal_(self.A_mean)
         nn.init.normal_(self.b_mean)
 
-        nn.init.xavier_normal_(self.A_logvar)
-        nn.init.normal_(self.b_logvar)
+        nn.init.uniform_(self.A_logvar, a=-10, b=-5)
+        nn.init.uniform_(self.b_logvar, a=-10, b=-5)
 
     def construct_priors(self, prior):
         if prior == "DiagonalGaussian":

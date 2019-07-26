@@ -190,28 +190,6 @@ def load_mnist(args):
     return train_loader, test_loader
 
 
-def get_statistics(model, criterion, loader, step, args):
-    elbo, cat_mean, kls, accuracy = [], [], [], []
-    with torch.no_grad():
-        for data, y in loader:
-            x = data.view(-1, 28 * 28) if args.arch == 'fc' else x
-            x = x.to(args.device)
-            y = y.to(args.device)
-            y_ohe = one_hot_encoding(y[:, None], 10, args.device)
-
-            loss, categorical_mean, kl, logsoftmax = criterion(model(x),
-                                                               y_ohe, step)
-            pred = torch.argmax(logsoftmax, dim=1)
-
-            elbo.append(-loss.item())
-            cat_mean.append(categorical_mean.item())
-            kls.append(kl.item())
-            accuracy.append(
-                (torch.sum(pred == torch.squeeze(y)) / args.batch_size).item())
-
-    return np.mean(elbo), np.mean(cat_mean), np.mean(kls), np.mean(accuracy)
-
-
 def save_checkpoint(state, dir, filename):
     torch.save(state, os.path.join(dir, filename))
 
@@ -239,7 +217,6 @@ def report(dir, elbo, cat_mean, kl, accuracy, test_acc_prob,
 
 
 def prepare_directory(args):
-
     if args.checkpoint_dir == '':
         args.checkpoint_dir = os.path.join('checkpoints', 'last_expirement')
     else:

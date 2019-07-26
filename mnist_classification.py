@@ -43,8 +43,7 @@ parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--gamma', type=float, default=0.5,
                     help='lr decrease rate in MultiStepLR scheduler')
 parser.add_argument('--epochs', type=int, default=23000)
-parser.add_argument('--milestones', nargs='+', type=int,
-                    default=[3000, 5000, 9000, 13000])
+parser.add_argument('--milestones', nargs='+', type=int, default=[])
 parser.add_argument('--mc_samples', default=1, type=int)
 parser.add_argument('--clip_grad', type=float, default=0.1)
 parser.add_argument('--checkpoint_dir', type=str, default='')
@@ -66,16 +65,21 @@ if __name__ == "__main__":
 
     criterion = ClassificationLoss(model, args)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
-                                                     args.milestones,
-                                                     gamma=args.gamma)
+
+    if len(args.milestones) > 0:
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
+                                                         args.milestones,
+                                                         gamma=args.gamma)
+    else:
+        scheduler = None
 
     best_epoch = 0
     best_test_acc = - 10 ** 9
 
     for epoch in range(args.epochs):
         print('\nepoch:', epoch)
-        scheduler.step()
+        if scheduler is not None:
+            scheduler.step()
         criterion.step()
 
         elbo, cat_mean, kls, accuracy = [], [], [], []

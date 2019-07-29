@@ -1,9 +1,8 @@
-import torch
-import numpy as np
 import math
 
+import numpy as np
+import torch
 import torch.nn.functional as F
-
 from torch.distributions import MultivariateNormal
 
 EPS = 1e-6
@@ -135,3 +134,17 @@ def sample_softmax(logits, n_samples):
     activations = sample_activations(logits, n_samples)
     softmax = F.softmax(activations, dim=1)
     return torch.mean(softmax, dim=0)
+
+
+def classification_posterior(mean, var):
+    p = F.softmax(mean, dim=1)
+
+    diagVar = matrix_diag_part(var)
+    pTdiagVar = torch.sum(p * diagVar, dim=-1, keepdim=True)
+    pTVarp = torch.squeeze(torch.matmul(torch.unsqueeze(p, 1),
+                                        torch.matmul(var,
+                                                     torch.unsqueeze(p, 2))),
+                           dim=-1)
+    Varp = torch.squeeze(torch.matmul(var, torch.unsqueeze(p, 2)), dim=-1)
+
+    return p * (1 + pTVarp - Varp + 0.5 * diagVar - 0.5 * pTdiagVar)

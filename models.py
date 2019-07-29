@@ -1,4 +1,3 @@
-import torch
 from torch import nn
 
 from layers import LinearGaussian, ReluGaussian
@@ -32,4 +31,4 @@ class LinearDVI(nn.Module):
 
 class LeNetDVI(nn.Module):
     def __init__(self, args):
-        raise NotImplementedError("not implemented yet")
+        raise NotImplementedError()

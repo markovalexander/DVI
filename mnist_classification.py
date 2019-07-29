@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import tqdm
 
+from bayesian_utils import classification_posterior
 from losses import ClassificationLoss, logsoftmax_mean, sample_softmax
 from models import LinearDVI, LeNetDVI
 from utils import load_mnist, save_checkpoint, report, prepare_directory, \
@@ -47,6 +48,8 @@ parser.add_argument('--milestones', nargs='+', type=int, default=[])
 parser.add_argument('--mc_samples', default=1, type=int)
 parser.add_argument('--clip_grad', type=float, default=0.1)
 parser.add_argument('--checkpoint_dir', type=str, default='')
+parser.add_argument('--use_samples', action='store_true',
+                    help='use mc samples for determenistic probs on test stage.')
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -94,6 +97,7 @@ if __name__ == "__main__":
 
             loss, categorical_mean, kl, logsoftmax = criterion(y_logits,
                                                                y_ohe)
+
             pred = torch.argmax(logsoftmax, dim=1)
             loss.backward()
 
@@ -126,8 +130,10 @@ if __name__ == "__main__":
 
                 if args.mcvi:
                     probs = F.softmax(logits[0], dim=1)
-                else:
+                elif args.use_samples:
                     probs = sample_softmax(logits, n_samples=args.mc_samples)
+                else:
+                    probs = classification_posterior(logits[0], logits[1])
 
                 pred = torch.argmax(probs, dim=1)
                 test_acc_prob.append(

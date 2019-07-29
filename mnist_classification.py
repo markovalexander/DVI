@@ -17,20 +17,12 @@ np.random.seed(42)
 
 EPS = 1e-6
 
-# TODO: batch_size поменьше
-
 # TODO: для предсказания занулить дисперсии и использовать мат.ожидания как веса
 # TODO: (если это плохо работает, то это индикатор оч большой дисперсии)
 
 # TODO: посмотреть галазами на сэмплы внутри слоев (после того как все научится)
 
-# TODO: dvi_train_mcvi_test
-
-# TODO: 1 слой а не 3, для линейной модели, и с склеарном сравнить линейным
-
 # TODO: попрофилировать
-
-# TODO: better device argument
 
 parser = argparse.ArgumentParser()
 
@@ -43,9 +35,9 @@ parser.add_argument('--warmup_updates', type=int, default=14000)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--gamma', type=float, default=0.5,
                     help='lr decrease rate in MultiStepLR scheduler')
-parser.add_argument('--epochs', type=int, default=23000)
+parser.add_argument('--epochs', type=int, default=100)
 parser.add_argument('--milestones', nargs='+', type=int, default=[])
-parser.add_argument('--mc_samples', default=1, type=int)
+parser.add_argument('--mc_samples', default=10, type=int)
 parser.add_argument('--clip_grad', type=float, default=0.1)
 parser.add_argument('--checkpoint_dir', type=str, default='')
 parser.add_argument('--use_samples', action='store_true',

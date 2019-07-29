@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 
 from bayesian_utils import KL_GG, softrelu, delta, heaviside_q, gaussian_cdf, \
-    matrix_diag_part
+    matrix_diag_part, standard_gaussian
 
 EPS = 1e-6
 
@@ -447,19 +447,12 @@ class MeanFieldConv2d(nn.Module):
 
     def _activation(self, x_mean, x_var):
         if self.activation == 'relu':
-            x_var_diag = x_var
-            sqrt_x_var_diag = torch.sqrt(x_var_diag + EPS)
-            mu = x_mean / (sqrt_x_var_diag + EPS)
-
+            sqrt_x_var = torch.sqrt(x_var + EPS)
+            mu = x_mean / sqrt_x_var
+            z_mean = sqrt_x_var * softrelu(mu)
+            z_var = x_var * (mu * standard_gaussian(mu) + (
+                        1 + mu ** 2) * gaussian_cdf(mu))
+            return z_mean, z_var
         else:
             return x_mean, x_var
 
-    def _compute_var(self, x_var, mu):
-        mu1 = torch.unsqueeze(mu, 2)
-        mu2 = mu1
-
-        s11s22 = torch.unsqueeze(x_var, dim=2) * torch.unsqueeze(
-            x_var, dim=1)
-        rho = x_var / (torch.sqrt(s11s22) + EPS)
-        rho = torch.clamp(rho, -1 / (1 + EPS), 1 / (1 + EPS))
-        return x_var * delta(rho, mu1, mu2)

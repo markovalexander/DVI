@@ -27,9 +27,9 @@ EPS = 1e-6
 
 # TODO: 1 слой а не 3, для линейной модели, и с склеарном сравнить линейным
 
-# TODO: вообще без кл
-
 # TODO: попрофилировать
+
+# TODO: better device argument
 
 parser = argparse.ArgumentParser()
 
@@ -146,7 +146,7 @@ if __name__ == "__main__":
             test_acc_prob = np.mean(test_acc_prob)
             test_acc_log_prob = np.mean(test_acc_log_prob)
 
-        report(args.checkpoint_dir, elbo, cat_mean, kl, accuracy,
+        report(args.checkpoint_dir, epoch, elbo, cat_mean, kl, accuracy,
                test_acc_prob, test_acc_log_prob)
 
         state = {

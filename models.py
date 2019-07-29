@@ -18,6 +18,11 @@ class LinearDVI(nn.Module):
         x = self.fc2(x)
         return self.fc3(x)
 
+    def mean_forward(self, x):
+        x = self.fc1.mean_forward(x)
+        x = self.fc2.mean_forward(x)
+        return self.fc3.mean_forward(x)
+
     def mcvi(self):
         self.fc1.mcvi()
         self.fc2.mcvi()

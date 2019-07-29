@@ -153,6 +153,15 @@ class LinearGaussian(nn.Module):
 
         return y_mean, y_var
 
+    def mean_forward(self, x):
+        if not isinstance(x, tuple):
+            x_mean = x
+        else:
+            x_mean = x[0]
+
+        y_mean = F.linear(x_mean, self.A_mean.t()) + self.b_mean
+        return y_mean, None
+
     def compute_var(self, x_mean, x_var):
         A_var = torch.exp(self.A_logvar)
 
@@ -232,6 +241,15 @@ class ReluGaussian(nn.Module):
             z_var = self.compute_var(x_var, x_var_diag, mu)
 
         return self.linear((z_mean, z_var))
+
+    def mean_forward(self, x):
+        if not isinstance(x, tuple):
+            x_mean = x
+        else:
+            x_mean = x[0]
+
+        y = F.relu(x_mean)
+        return self.linear.mean_forward(y)
 
     def compute_var(self, x_var, x_var_diag, mu):
         mu1 = torch.unsqueeze(mu, 2)

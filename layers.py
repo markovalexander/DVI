@@ -371,8 +371,8 @@ class MeanFieldConv2d(nn.Module):
         nn.init.kaiming_normal_(self.weights_mean)
         nn.init.normal_(self.bias_mean)
 
-        nn.init.kaiming_normal_(self.weights_log_var)
-        nn.init.normal_(self.bias_log_var)
+        nn.init.uniform_(self.weights_log_var, a=-10, b=-7)
+        nn.init.uniform_(self.bias_log_var, a=-10, b=-7)
 
     def compute_kl(self):
         weights_kl = KL_GG(self.weights_mean, torch.exp(self.weights_log_var),
@@ -429,6 +429,19 @@ class MeanFieldConv2d(nn.Module):
 
     def _activation(self, x_mean, x_var):
         if self.activation == 'relu':
-            raise NotImplementedError("activations are not supported yet")
+            x_var_diag = x_var
+            sqrt_x_var_diag = torch.sqrt(x_var_diag + EPS)
+            mu = x_mean / (sqrt_x_var_diag + EPS)
+
         else:
             return x_mean, x_var
+
+    def _compute_var(self, x_var, mu):
+        mu1 = torch.unsqueeze(mu, 2)
+        mu2 = mu1
+
+        s11s22 = torch.unsqueeze(x_var, dim=2) * torch.unsqueeze(
+            x_var, dim=1)
+        rho = x_var / (torch.sqrt(s11s22) + EPS)
+        rho = torch.clamp(rho, -1 / (1 + EPS), 1 / (1 + EPS))
+        return x_var * delta(rho, mu1, mu2)

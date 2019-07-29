@@ -160,7 +160,7 @@ if __name__ == "__main__":
             'state_dict': model.state_dict(),
             'elbo': elbo,
             'train_accuracy': accuracy,
-            'test_accuracy (sample)': test_acc_prob,
+            'test_accuracy (probs)': test_acc_prob,
             'test_accuracy (mean_logsoftmax)': test_acc_log_prob
         }
 

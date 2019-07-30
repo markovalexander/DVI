@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import MultivariateNormal
+from torch.distributions import MultivariateNormal, Independent, Normal
 
 from bayesian_utils import KL_GG, softrelu, delta, heaviside_q, gaussian_cdf, \
     matrix_diag_part, standard_gaussian
@@ -418,8 +418,19 @@ class MeanFieldConv2d(nn.Module):
         else:
             return self.__mcvi_forward(x)
 
-    def __det_forward(self, x):
+    def mean_forward(self, x):
+        if not isinstance(x, tuple):
+            x_mean = x
+        else:
+            x_mean = x[0]
 
+        x_mean = F.relu(x_mean)
+        z_mean = F.conv2d(x_mean, self.weights_mean, self.bias_mean,
+                          self.stride,
+                          self.padding)
+        return z_mean, None
+
+    def __det_forward(self, x):
         if self.certain and isinstance(x, tuple):
             x_mean = x[0]
             x_var = x_mean * x_mean
@@ -443,7 +454,29 @@ class MeanFieldConv2d(nn.Module):
         return z_mean, z_var
 
     def __mcvi_forward(self, x):
-        raise NotImplementedError()
+        if self.certain and isinstance(x, tuple):
+            x_mean = x[0]
+            x_var = x_mean * x_mean
+        elif not self.certain:
+            x_mean = x[0]
+            x_var = x[1]
+        else:
+            x_mean = x
+            x_var = x_mean * x_mean
+
+        weights_var = torch.exp(self.weights_log_var)
+        bias_var = torch.exp(self.bias_log_var)
+
+        x_mean, x_var = self._activation(x_mean, x_var)
+
+        z_mean = F.conv2d(x_mean, self.weights_mean, self.bias_mean,
+                          self.stride,
+                          self.padding)
+        z_var = F.conv2d(x_var, weights_var, bias_var, self.stride,
+                         self.padding)
+        dst = Independent(Normal(z_mean, z_var), 1)
+        sample = dst.rsample()
+        return sample, None
 
     def _activation(self, x_mean, x_var):
         if self.activation == 'relu':
@@ -451,8 +484,33 @@ class MeanFieldConv2d(nn.Module):
             mu = x_mean / sqrt_x_var
             z_mean = sqrt_x_var * softrelu(mu)
             z_var = x_var * (mu * standard_gaussian(mu) + (
-                        1 + mu ** 2) * gaussian_cdf(mu))
+                    1 + mu ** 2) * gaussian_cdf(mu))
             return z_mean, z_var
         else:
             return x_mean, x_var
 
+
+class AveragePoolGaussian(nn.Module):
+    def __init__(self, kernel_size, stride=None, padding=0):
+        super().__init__()
+
+        if not isinstance(kernel_size, tuple):
+            kernel_size = (kernel_size, kernel_size)
+
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+
+    def forward(self, x):
+        if not isinstance(x, tuple):
+            raise ValueError(
+                "Input for pooling layer should be tuple of tensors")
+
+        x_mean, x_var = x
+        z_mean = F.avg_pool2d(x_mean, self.kernel_size, self.stride,
+                              self.padding)
+
+        n = self.kernel_size[0] * self.kernel_size[1]
+        z_var = F.avg_pool2d(x_var, self.kernel_size, self.stride,
+                             self.padding) / n
+        return z_mean, z_var

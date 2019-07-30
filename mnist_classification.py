@@ -81,7 +81,11 @@ if __name__ == "__main__":
         for data, y_train in tqdm.tqdm(train_loader):
             optimizer.zero_grad()
 
-            x_train = data.view(-1, 28 * 28).to(args.device)
+            if args.arch == "fc":
+                x_train = data.view(-1, 28 * 28).to(args.device)
+            else:
+                x_train = data.to(args.device)
+
             y_train = y_train.to(args.device)
 
             y_ohe = one_hot_encoding(y_train[:, None], 10, args.device)
@@ -115,9 +119,13 @@ if __name__ == "__main__":
         test_acc_log_prob = []
         with torch.no_grad():
             for data, y_test in test_loader:
-                x = data.view(-1, 28 * 28).to(args.device)
-                y = y_test.to(args.device)
 
+                if args.arch == "fc":
+                    x = data.view(-1, 28 * 28).to(args.device)
+                else:
+                    x = data.to(args.device)
+
+                y = y_test.to(args.device)
                 logits = model(x)
 
                 if args.mcvi:

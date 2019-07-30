@@ -393,11 +393,13 @@ class MeanFieldConv2d(nn.Module):
         nn.init.uniform_(self.bias_log_var, a=-10, b=-7)
 
     def compute_kl(self):
+        device = self.weights_mean.device
         weights_kl = KL_GG(self.weights_mean, torch.exp(self.weights_log_var),
-                           self._weight_prior['mean'],
-                           self._weight_prior['var'])
+                           self._weight_prior['mean'].to(device),
+                           self._weight_prior['var'].to(device))
         bias_kl = KL_GG(self.bias_mean, torch.exp(self.bias_log_var),
-                        self._bias_prior['mean'], self._bias_prior['var'])
+                        self._bias_prior['mean'].to(device),
+                        self._bias_prior['var'].to(device))
         return weights_kl + bias_kl
 
     def get_mode(self):

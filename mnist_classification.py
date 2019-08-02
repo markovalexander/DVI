@@ -3,26 +3,23 @@ import os
 
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import tqdm
 
 from bayesian_utils import classification_posterior
-from losses import ClassificationLoss, logsoftmax_mean, sample_softmax
+from losses import ClassificationLoss, sample_softmax
 from models import LinearDVI, LeNetDVI
 from utils import load_mnist, save_checkpoint, report, prepare_directory, \
-    one_hot_encoding
+    mc_prediction
 
 np.random.seed(42)
 
 EPS = 1e-6
 
-# TODO: для предсказания занулить дисперсии и использовать мат.ожидания как веса
-# TODO: (если это плохо работает, то это индикатор оч большой дисперсии)
-
 # TODO: посмотреть галазами на сэмплы внутри слоев (после того как все научится)
 
 # TODO: попрофилировать
+
+# TODO у монтекарло как-то елбо лучше получается
 
 parser = argparse.ArgumentParser()
 
@@ -79,6 +76,7 @@ if __name__ == "__main__":
 
         elbo, cat_mean, kls, accuracy = [], [], [], []
         for data, y_train in tqdm.tqdm(train_loader):
+            break
             optimizer.zero_grad()
 
             if args.arch == "fc":
@@ -126,13 +124,14 @@ if __name__ == "__main__":
                     x = data.to(args.device)
 
                 y = y_test.to(args.device)
-                logits = model(x)
 
                 if args.mcvi:
-                    probs = F.softmax(logits[0], dim=1)
+                    probs = mc_prediction(model, x, args.mc_samples)
                 elif args.use_samples:
+                    logits = model(x)
                     probs = sample_softmax(logits, n_samples=args.mc_samples)
                 else:
+                    logits = model(x)
                     probs = classification_posterior(logits[0], logits[1])
 
                 pred = torch.argmax(probs, dim=1)
@@ -140,28 +139,17 @@ if __name__ == "__main__":
                     (torch.sum(torch.squeeze(pred) == torch.squeeze(y),
                                dtype=torch.float32) / args.batch_size).item())
 
-                if args.mcvi:
-                    log_probs = F.log_softmax(logits[0], dim=1)
-                else:
-                    log_probs = logsoftmax_mean(logits)
-                pred = torch.argmax(log_probs, dim=1)
-                test_acc_log_prob.append(
-                    (torch.sum(torch.squeeze(pred) == torch.squeeze(y),
-                               dtype=torch.float32) / args.batch_size).item())
-
             test_acc_prob = np.mean(test_acc_prob)
-            test_acc_log_prob = np.mean(test_acc_log_prob)
 
         report(args.checkpoint_dir, epoch, elbo, cat_mean, kl, accuracy,
-               test_acc_prob, test_acc_log_prob)
+               test_acc_prob)
 
         state = {
             'epoch': epoch,
             'state_dict': model.state_dict(),
             'elbo': elbo,
             'train_accuracy': accuracy,
-            'test_accuracy (probs)': test_acc_prob,
-            'test_accuracy (mean_logsoftmax)': test_acc_log_prob
+            'test_accuracy (probs)': test_acc_prob
         }
 
         save_checkpoint(state, args.checkpoint_dir,

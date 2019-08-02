@@ -4,6 +4,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torch.nn.functional as F
 from sklearn.datasets import make_classification, make_circles
 from torchvision import datasets, transforms
 
@@ -204,13 +205,11 @@ def load_checkpoint(model, filename):
     return epoch, accuracy, elbo
 
 
-def report(dir, epoch, elbo, cat_mean, kl, accuracy, test_acc_prob,
-           test_acc_log_prob):
+def report(dir, epoch, elbo, cat_mean, kl, accuracy, test_acc_prob):
     message = "ELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}\n".format(
         elbo, cat_mean, kl)
     message += "train accuracy: {:.4f}\t".format(accuracy)
     message += "test_accuracy(probs): {:.4f}\t".format(test_acc_prob)
-    message += "test_accuracy(mean logprob): {:.4f}\n".format(test_acc_log_prob)
     print(message)
 
     message = "\nepoch: {}\n".format(epoch) + message
@@ -230,3 +229,10 @@ def prepare_directory(args):
     print(args)
     with open(os.path.join(args.checkpoint_dir, 'hypers'), 'w') as f:
         print(args, file=f)
+
+
+def mc_prediction(model, input, n_samples):
+    logits = torch.stack([model(input)[0] for _ in range(n_samples)], dim=0)
+    probs = F.softmax(logits, dim=-1)
+    mean_probs = torch.mean(probs, dim=0)
+    return mean_probs

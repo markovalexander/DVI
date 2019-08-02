@@ -9,7 +9,7 @@ from bayesian_utils import classification_posterior
 from losses import ClassificationLoss, sample_softmax
 from models import LinearDVI, LeNetDVI
 from utils import load_mnist, save_checkpoint, report, prepare_directory, \
-    mc_prediction
+    mc_prediction, one_hot_encoding
 
 np.random.seed(42)
 
@@ -76,7 +76,6 @@ if __name__ == "__main__":
 
         elbo, cat_mean, kls, accuracy = [], [], [], []
         for data, y_train in tqdm.tqdm(train_loader):
-            break
             optimizer.zero_grad()
 
             if args.arch == "fc":

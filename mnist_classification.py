@@ -4,6 +4,7 @@ import os
 import numpy as np
 import torch
 import tqdm
+from torch import nn
 
 from bayesian_utils import classification_posterior
 from losses import ClassificationLoss, sample_softmax

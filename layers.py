@@ -1,16 +1,17 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import MultivariateNormal
+from torch.distributions import MultivariateNormal, Independent, Normal
 
-from bayesian_utils import KL_GG, softrelu, delta, heaviside_q, gaussian_cdf, matrix_diag_part
+from bayesian_utils import KL_GG, softrelu, delta, heaviside_q, gaussian_cdf, \
+    matrix_diag_part, standard_gaussian
 
 EPS = 1e-6
 
 
 class LinearGaussian(nn.Module):
     def __init__(self, in_features, out_features, certain=False,
-                 prior="DiagonalGaussian", device='cpu'):
+                 prior="DiagonalGaussian"):
         """
         Applies linear transformation y = xA^T + b
 
@@ -33,37 +34,42 @@ class LinearGaussian(nn.Module):
 
         self.prior = prior
         self.initialize_weights()
-        self.construct_priors(self.prior, device)
+        self.construct_priors(self.prior)
         self.use_dvi = True
 
     def initialize_weights(self):
         nn.init.xavier_normal_(self.A_mean)
         nn.init.normal_(self.b_mean)
 
-        nn.init.xavier_normal_(self.A_logvar)
-        nn.init.normal_(self.b_logvar)
+        nn.init.uniform_(self.A_logvar, a=-10, b=-5)
+        nn.init.uniform_(self.b_logvar, a=-10, b=-5)
 
-    def construct_priors(self, prior, device):
+    def construct_priors(self, prior):
         if prior == "DiagonalGaussian":
             s1 = s2 = 0.1
 
-            self._prior_A = {
-                'mean': torch.zeros_like(self.A_mean, requires_grad=False).to(device),
-                'var': torch.ones_like(self.A_logvar, requires_grad=False).to(device) * s2}
-            self._prior_b = {
-                'mean': torch.zeros_like(self.b_mean, requires_grad=False).to(device),
-                'var': torch.ones_like(self.b_logvar, requires_grad=False).to(device) * s1}
+            self._prior_A_mean = nn.Parameter(torch.zeros_like(self.A_mean),
+                                              requires_grad=False)
+            self._prior_A_var = nn.Parameter(
+                torch.ones_like(self.A_logvar) * s2,
+                requires_grad=False)
+
+            self._prior_b_mean = nn.Parameter(torch.zeros_like(self.b_mean),
+                                              requires_grad=False)
+            self._prior_b_var = nn.Parameter(
+                torch.ones_like(self.b_logvar) * s1,
+                requires_grad=False)
         else:
             raise NotImplementedError("{} prior is not supported".format(prior))
 
     def compute_kl(self):
         if self.prior == 'DiagonalGaussian':
             kl_A = KL_GG(self.A_mean, torch.exp(self.A_logvar),
-                         self._prior_A['mean'].to(self.A_mean.device),
-                         self._prior_A['var'].to(self.A_mean.device))
+                         self._prior_A_mean,
+                         self._prior_A_var)
             kl_b = KL_GG(self.b_mean, torch.exp(self.b_logvar),
-                         self._prior_b['mean'].to(self.A_mean.device),
-                         self._prior_b['var'].to(self.A_mean.device))
+                         self._prior_b_mean,
+                         self._prior_b_var)
         return kl_A + kl_b
 
     def determenistic(self, mode=True):
@@ -146,6 +152,15 @@ class LinearGaussian(nn.Module):
 
         return y_mean, y_var
 
+    def mean_forward(self, x):
+        if not isinstance(x, tuple):
+            x_mean = x
+        else:
+            x_mean = x[0]
+
+        y_mean = F.linear(x_mean, self.A_mean.t()) + self.b_mean
+        return y_mean, None
+
     def compute_var(self, x_mean, x_var):
         A_var = torch.exp(self.A_logvar)
 
@@ -194,7 +209,7 @@ class ReluGaussian(nn.Module):
         """
 
         super().__init__()
-        self.linear = LinearGaussian(in_features, out_features, certain, prior, device=device)
+        self.linear = LinearGaussian(in_features, out_features, certain, prior)
         self.certain = certain
         self.use_dvi = True
 
@@ -225,6 +240,15 @@ class ReluGaussian(nn.Module):
             z_var = self.compute_var(x_var, x_var_diag, mu)
 
         return self.linear((z_mean, z_var))
+
+    def mean_forward(self, x):
+        if not isinstance(x, tuple):
+            x_mean = x
+        else:
+            x_mean = x[0]
+
+        y = F.relu(x_mean)
+        return self.linear.mean_forward(y)
 
     def compute_var(self, x_var, x_var_diag, mu):
         mu1 = torch.unsqueeze(mu, 2)
@@ -313,3 +337,181 @@ class HeavisideGaussian(nn.Module):
             print('Using determenistic mode')
         else:
             print('Using MCVI')
+
+
+class MeanFieldConv2d(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1,
+                 activation='relu',
+                 padding=0,
+                 prior='DiagonalGaussian', certain=False):
+        super().__init__()
+
+        self.use_det = True
+        self.certain = certain
+        self.stride = stride
+        self.padding = padding
+
+        self.weights_mean = nn.Parameter(
+            torch.Tensor(out_channels, in_channels, kernel_size, kernel_size))
+        self.weights_log_var = nn.Parameter(
+            torch.Tensor(out_channels, in_channels, kernel_size, kernel_size))
+
+        self.bias_mean = nn.Parameter(torch.Tensor(out_channels))
+        self.bias_log_var = nn.Parameter(torch.Tensor(out_channels))
+
+        self.prior = prior
+        self.initialize_weights()
+        self.construct_priors()
+        self.activation = activation.strip().lower()
+
+    def construct_priors(self):
+        if self.prior == "DiagonalGaussian":
+
+            s1 = s2 = 0.1
+            self._weight_prior_mean = nn.Parameter(
+                torch.zeros_like(self.weights_mean),
+                requires_grad=False)
+            self._weight_prior_var = nn.Parameter(
+                torch.ones_like(self.weights_log_var),
+                requires_grad=False) * s1
+
+            self._bias_prior_mean = nn.Parameter(
+                torch.zeros_like(self.bias_mean, requires_grad=False))
+            self._bias_prior_var = nn.Parameter(
+                torch.ones_like(self.bias_log_var),
+                requires_grad=False) * s2
+        else:
+            raise NotImplementedError(
+                "{} prior is not supported".format(self.prior))
+
+    def initialize_weights(self):
+        nn.init.kaiming_normal_(self.weights_mean)
+        nn.init.normal_(self.bias_mean)
+
+        nn.init.uniform_(self.weights_log_var, a=-10, b=-7)
+        nn.init.uniform_(self.bias_log_var, a=-10, b=-7)
+
+    def compute_kl(self):
+        device = self.weights_mean.device
+        weights_kl = KL_GG(self.weights_mean, torch.exp(self.weights_log_var),
+                           self._weight_prior_mean,
+                           self._weight_prior_var)
+        bias_kl = KL_GG(self.bias_mean, torch.exp(self.bias_log_var),
+                        self._bias_prior_mean,
+                        self._bias_prior_var)
+        return weights_kl + bias_kl
+
+    def get_mode(self):
+        if self.use_det:
+            return "Determenistic"
+        else:
+            return "MonteCarlo"
+
+    def determenistic(self, mode=True):
+        self.use_det = mode
+
+    def mcvi(self, mode=True):
+        self.use_det = not mode
+
+    def forward(self, x):
+        if self.use_det:
+            return self.__det_forward(x)
+        else:
+            return self.__mcvi_forward(x)
+
+    def mean_forward(self, x):
+        if not isinstance(x, tuple):
+            x_mean = x
+        else:
+            x_mean = x[0]
+
+        x_mean = F.relu(x_mean)
+        z_mean = F.conv2d(x_mean, self.weights_mean, self.bias_mean,
+                          self.stride,
+                          self.padding)
+        return z_mean, None
+
+    def __det_forward(self, x):
+        if self.certain and isinstance(x, tuple):
+            x_mean = x[0]
+            x_var = x_mean * x_mean
+        elif not self.certain:
+            x_mean = x[0]
+            x_var = x[1]
+        else:
+            x_mean = x
+            x_var = x_mean * x_mean
+
+        weights_var = torch.exp(self.weights_log_var)
+        bias_var = torch.exp(self.bias_log_var)
+
+        x_mean, x_var = self._activation(x_mean, x_var)
+
+        z_mean = F.conv2d(x_mean, self.weights_mean, self.bias_mean,
+                          self.stride,
+                          self.padding)
+        z_var = F.conv2d(x_var, weights_var, bias_var, self.stride,
+                         self.padding)
+        return z_mean, z_var
+
+    def __mcvi_forward(self, x):
+        if self.certain and isinstance(x, tuple):
+            x_mean = x[0]
+            x_var = x_mean * x_mean
+        elif not self.certain:
+            x_mean = x[0]
+            x_var = x[1]
+        else:
+            x_mean = x
+            x_var = x_mean * x_mean
+
+        weights_var = torch.exp(self.weights_log_var)
+        bias_var = torch.exp(self.bias_log_var)
+
+        x_mean, x_var = self._activation(x_mean, x_var)
+
+        z_mean = F.conv2d(x_mean, self.weights_mean, self.bias_mean,
+                          self.stride,
+                          self.padding)
+        z_var = F.conv2d(x_var, weights_var, bias_var, self.stride,
+                         self.padding)
+        dst = Independent(Normal(z_mean, z_var), 1)
+        sample = dst.rsample()
+        return sample, None
+
+    def _activation(self, x_mean, x_var):
+        if self.activation == 'relu':
+            sqrt_x_var = torch.sqrt(x_var + EPS)
+            mu = x_mean / sqrt_x_var
+            z_mean = sqrt_x_var * softrelu(mu)
+            z_var = x_var * (mu * standard_gaussian(mu) + (
+                    1 + mu ** 2) * gaussian_cdf(mu))
+            return z_mean, z_var
+        else:
+            return x_mean, x_var
+
+
+class AveragePoolGaussian(nn.Module):
+    def __init__(self, kernel_size, stride=None, padding=0):
+        super().__init__()
+
+        if not isinstance(kernel_size, tuple):
+            kernel_size = (kernel_size, kernel_size)
+
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+
+    def forward(self, x):
+        if not isinstance(x, tuple):
+            raise ValueError(
+                "Input for pooling layer should be tuple of tensors")
+
+        x_mean, x_var = x
+        z_mean = F.avg_pool2d(x_mean, self.kernel_size, self.stride,
+                              self.padding)
+
+        n = self.kernel_size[0] * self.kernel_size[1]
+        z_var = F.avg_pool2d(x_var, self.kernel_size, self.stride,
+                             self.padding) / n
+        return z_mean, z_var

@@ -48,29 +48,28 @@ class LinearGaussian(nn.Module):
         if prior == "DiagonalGaussian":
             s1 = s2 = 0.1
 
-            self._prior_A = {
-                'mean': nn.Parameter(torch.zeros_like(self.A_mean),
-                                     requires_grad=False),
-                'var': nn.Parameter(torch.ones_like(self.A_logvar) * s2,
-                                    requires_grad=False)
-            }
-            self._prior_b = {
-                'mean': nn.Parameter(torch.zeros_like(self.b_mean),
-                                     requires_grad=False),
-                'var': nn.Parameter(torch.ones_like(self.b_logvar) * s1,
-                                    requires_grad=False)
-            }
+            self._prior_A_mean = nn.Parameter(torch.zeros_like(self.A_mean),
+                                              requires_grad=False)
+            self._prior_A_var = nn.Parameter(
+                torch.ones_like(self.A_logvar) * s2,
+                requires_grad=False)
+
+            self._prior_b_mean = nn.Parameter(torch.zeros_like(self.b_mean),
+                                              requires_grad=False)
+            self._prior_b_var = nn.Parameter(
+                torch.ones_like(self.b_logvar) * s1,
+                requires_grad=False)
         else:
             raise NotImplementedError("{} prior is not supported".format(prior))
 
     def compute_kl(self):
         if self.prior == 'DiagonalGaussian':
             kl_A = KL_GG(self.A_mean, torch.exp(self.A_logvar),
-                         self._prior_A['mean'].to(self.A_mean.device),
-                         self._prior_A['var'].to(self.A_mean.device))
+                         self._prior_A_mean,
+                         self._prior_A_var)
             kl_b = KL_GG(self.b_mean, torch.exp(self.b_logvar),
-                         self._prior_b['mean'].to(self.A_mean.device),
-                         self._prior_b['var'].to(self.A_mean.device))
+                         self._prior_b_mean,
+                         self._prior_b_var)
         return kl_A + kl_b
 
     def determenistic(self, mode=True):
@@ -369,18 +368,18 @@ class MeanFieldConv2d(nn.Module):
         if self.prior == "DiagonalGaussian":
 
             s1 = s2 = 0.1
-            self._weight_prior = {
-                'mean': nn.Parameter(torch.zeros_like(self.weights_mean),
-                                     requires_grad=False),
-                'var': nn.Parameter(torch.ones_like(self.weights_log_var),
-                                    requires_grad=False) * s1
-            }
-            self._bias_prior = {
-                'mean': nn.Parameter(
-                    torch.zeros_like(self.bias_mean, requires_grad=False)),
-                'var': nn.Parameter(torch.ones_like(self.bias_log_var),
-                                    requires_grad=False) * s2
-            }
+            self._weight_prior_mean = nn.Parameter(
+                torch.zeros_like(self.weights_mean),
+                requires_grad=False)
+            self._weight_prior_var = nn.Parameter(
+                torch.ones_like(self.weights_log_var),
+                requires_grad=False) * s1
+
+            self._bias_prior_mean = nn.Parameter(
+                torch.zeros_like(self.bias_mean, requires_grad=False))
+            self._bias_prior_var = nn.Parameter(
+                torch.ones_like(self.bias_log_var),
+                requires_grad=False) * s2
         else:
             raise NotImplementedError(
                 "{} prior is not supported".format(self.prior))
@@ -395,11 +394,11 @@ class MeanFieldConv2d(nn.Module):
     def compute_kl(self):
         device = self.weights_mean.device
         weights_kl = KL_GG(self.weights_mean, torch.exp(self.weights_log_var),
-                           self._weight_prior['mean'].to(device),
-                           self._weight_prior['var'].to(device))
+                           self._weight_prior_mean,
+                           self._weight_prior_var)
         bias_kl = KL_GG(self.bias_mean, torch.exp(self.bias_log_var),
-                        self._bias_prior['mean'].to(device),
-                        self._bias_prior['var'].to(device))
+                        self._bias_prior_mean,
+                        self._bias_prior_var)
         return weights_kl + bias_kl
 
     def get_mode(self):

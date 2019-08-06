@@ -126,7 +126,10 @@ if __name__ == "__main__":
                 y = y_test.to(args.device)
 
                 if args.mcvi:
+                    print('started mc prediciton....')
                     probs = mc_prediction(model, x, args.mc_samples)
+                    print('finished!\n')
+
                 elif args.use_samples:
                     logits = model(x)
                     probs = sample_softmax(logits, n_samples=args.mc_samples)

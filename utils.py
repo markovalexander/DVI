@@ -233,8 +233,7 @@ def prepare_directory(args):
 
 
 def mc_prediction(model, input, n_samples):
-    logits = torch.stack([model(input)[0] for _ in tqdm.tqdm(range(n_samples))],
-                         dim=0)
+    logits = torch.stack([model(input)[0] for _ in range(n_samples)], dim=0)
     probs = F.softmax(logits, dim=-1)
     mean_probs = torch.mean(probs, dim=0)
     return mean_probs

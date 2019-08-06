@@ -28,8 +28,8 @@ parser.add_argument('--batch_size', type=int, default=64)
 parser.add_argument('--mcvi', action='store_true')
 parser.add_argument('--arch', type=str, default="fc")
 parser.add_argument('--device', type=int, default=0)
-parser.add_argument('--anneal_updates', type=int, default=1000)
-parser.add_argument('--warmup_updates', type=int, default=14000)
+parser.add_argument('--anneal_updates', type=int, default=1)
+parser.add_argument('--warmup_updates', type=int, default=0)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--gamma', type=float, default=0.5,
                     help='lr decrease rate in MultiStepLR scheduler')
@@ -126,10 +126,7 @@ if __name__ == "__main__":
                 y = y_test.to(args.device)
 
                 if args.mcvi:
-                    print('started mc prediciton....')
                     probs = mc_prediction(model, x, args.mc_samples)
-                    print('finished!\n')
-
                 elif args.use_samples:
                     logits = model(x)
                     probs = sample_softmax(logits, n_samples=args.mc_samples)

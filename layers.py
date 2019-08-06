@@ -372,14 +372,14 @@ class MeanFieldConv2d(nn.Module):
                 torch.zeros_like(self.weights_mean),
                 requires_grad=False)
             self._weight_prior_var = nn.Parameter(
-                torch.ones_like(self.weights_log_var),
-                requires_grad=False) * s1
+                torch.ones_like(self.weights_log_var) * s1,
+                requires_grad=False)
 
             self._bias_prior_mean = nn.Parameter(
                 torch.zeros_like(self.bias_mean, requires_grad=False))
             self._bias_prior_var = nn.Parameter(
-                torch.ones_like(self.bias_log_var),
-                requires_grad=False) * s2
+                torch.ones_like(self.bias_log_var) * s2,
+                requires_grad=False)
         else:
             raise NotImplementedError(
                 "{} prior is not supported".format(self.prior))
@@ -392,7 +392,7 @@ class MeanFieldConv2d(nn.Module):
         nn.init.uniform_(self.bias_log_var, a=-10, b=-7)
 
     def compute_kl(self):
-        device = self.weights_mean.device
+        # device = self.weights_mean.device
         weights_kl = KL_GG(self.weights_mean, torch.exp(self.weights_log_var),
                            self._weight_prior_mean,
                            self._weight_prior_var)

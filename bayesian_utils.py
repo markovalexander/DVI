@@ -9,7 +9,7 @@ EPS = 1e-6
 
 
 def matrix_diag_part(tensor):
-    return torch.stack(tuple(t.diag() for t in torch.unbind(tensor, 0)))
+    return torch.diagonal(tensor, dim1=-1, dim2=-2)
 
 
 def standard_gaussian(x):

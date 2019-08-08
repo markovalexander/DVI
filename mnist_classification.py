@@ -117,8 +117,9 @@ if __name__ == "__main__":
         test_acc_prob = []
         test_acc_log_prob = []
 
+        print("Test prediction\n")
         with torch.no_grad():
-            for data, y_test in test_loader:
+            for data, y_test in tqdm.tqdm(test_loader):
 
                 if args.arch == "fc":
                     x = data.view(-1, 28 * 28).to(args.device)

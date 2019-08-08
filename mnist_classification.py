@@ -140,7 +140,7 @@ if __name__ == "__main__":
                 pred = torch.argmax(probs, dim=1)
                 test_acc_prob.append(
                     (torch.sum(torch.squeeze(pred) == torch.squeeze(y),
-                               dtype=torch.float32) / args.batch_size).item())
+                               dtype=torch.float32) / args.test_batch_size).item())
 
             test_acc_prob = np.mean(test_acc_prob)
 

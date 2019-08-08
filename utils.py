@@ -1,6 +1,7 @@
 import math
 import os
 import tqdm
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -188,7 +189,7 @@ def load_mnist(args):
             transforms.ToTensor(),
             transforms.Normalize((0.1307,), (0.3081,))
         ])),
-        batch_size=args.batch_size, shuffle=True)
+        batch_size=args.test_batch_size, shuffle=True)
     return train_loader, test_loader
 
 

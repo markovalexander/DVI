@@ -139,7 +139,6 @@ def sample_softmax(logits, n_samples):
 
 def classification_posterior(mean, var):
     p = F.softmax(mean, dim=1)
-
     diagVar = matrix_diag_part(var)
     pTdiagVar = torch.sum(p * diagVar, dim=-1, keepdim=True)
     pTVarp = torch.squeeze(torch.matmul(torch.unsqueeze(p, 1),

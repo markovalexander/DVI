@@ -38,6 +38,7 @@ parser.add_argument('--milestones', nargs='+', type=int, default=[])
 parser.add_argument('--mc_samples', default=10, type=int)
 parser.add_argument('--clip_grad', type=float, default=0.1)
 parser.add_argument('--checkpoint_dir', type=str, default='')
+parser.add_argument('--test_batch_size', type=int, default=512)
 parser.add_argument('--use_samples', action='store_true',
                     help='use mc samples for determenistic probs on test stage.')
 
@@ -115,6 +116,7 @@ if __name__ == "__main__":
 
         test_acc_prob = []
         test_acc_log_prob = []
+
         with torch.no_grad():
             for data, y_test in test_loader:
 

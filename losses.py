@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from numpy import clip
 
-from bayesian_utils import logsoftmax_mean, sample_softmax
+from bayesian_utils import logsoftmax_mean, sample_logsoftmax
 
 EPS = 1e-8
 
@@ -120,12 +120,10 @@ class ClassificationLoss(nn.Module):
             batch_logprob term
             total kl term
         """
-        if not self.mcvi and not self.use_samples:
+        if not self.mcvi:
             logsoftmax = logsoftmax_mean(logits)
-        elif self.mcvi:
+        else:
             logsoftmax = F.log_softmax(logits[0], dim=1)
-        elif self.use_samples:
-            logsoftmax = sample_softmax(logits, self.n_samples)
 
         assert not target.requires_grad
         kl = 0.0

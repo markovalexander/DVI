@@ -125,19 +125,20 @@ def sample_activations(x, n_samples):
     return samples
 
 
-def sample_logsoftmax(logits, n_samples):
-    activations = sample_activations(logits, n_samples)
+def sample_logsoftmax(x, n_samples):
+    activations = sample_activations(x, n_samples)
     logsoftmax = F.log_softmax(activations, dim=1)
     return torch.mean(logsoftmax, dim=0)
 
 
-def sample_softmax(logits, n_samples):
-    activations = sample_activations(logits, n_samples)
+def sample_softmax(x, n_samples):
+    activations = sample_activations(x, n_samples)
     softmax = F.softmax(activations, dim=1)
     return torch.mean(softmax, dim=0)
 
 
-def classification_posterior(mean, var):
+def classification_posterior(activations):
+    mean, var = activations
     p = F.softmax(mean, dim=1)
     diagVar = matrix_diag_part(var)
     pTdiagVar = torch.sum(p * diagVar, dim=-1, keepdim=True)

@@ -104,6 +104,7 @@ class ClassificationLoss(nn.Module):
         self.anneal = args.anneal_updates
         self.data_size = args.data_size
         self.mcvi = args.mcvi
+        self.use_samples = args.use_samples
         self.n_samples = args.mc_samples
         self._step = 0
 
@@ -119,10 +120,12 @@ class ClassificationLoss(nn.Module):
             batch_logprob term
             total kl term
         """
-        if not self.mcvi:
+        if not self.mcvi and not self.use_samples:
             logsoftmax = logsoftmax_mean(logits)
-        else:
+        elif self.mcvi:
             logsoftmax = F.log_softmax(logits[0], dim=1)
+        elif self.use_samples:
+            logsoftmax = sample_softmax(logits, 1)
 
         assert not target.requires_grad
         kl = 0.0

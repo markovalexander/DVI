@@ -108,6 +108,7 @@ if __name__ == "__main__":
             accuracy.append(
                 (torch.sum(torch.squeeze(pred) == torch.squeeze(y_train),
                            dtype=torch.float32) / args.batch_size).item())
+            break
 
         elbo = np.mean(elbo)
         cat_mean = np.mean(cat_mean)
@@ -120,7 +121,6 @@ if __name__ == "__main__":
         print("\nTest prediction")
         with torch.no_grad():
             for data, y_test in tqdm.tqdm(test_loader):
-
                 if args.arch == "fc":
                     x = data.view(-1, 28 * 28).to(args.device)
                 else:
@@ -131,11 +131,12 @@ if __name__ == "__main__":
                 if args.mcvi:
                     probs = mc_prediction(model, x, args.mc_samples)
                 elif args.use_samples:
-                    logits = model(x)
-                    probs = sample_softmax(logits, n_samples=args.mc_samples)
+                    activations = model(x)
+                    probs = sample_softmax(activations,
+                                           n_samples=args.mc_samples)
                 else:
-                    logits = model(x)
-                    probs = classification_posterior(logits[0], logits[1])
+                    activations = model(x)
+                    probs = classification_posterior(activations)
 
                 pred = torch.argmax(probs, dim=1)
                 test_acc_prob.append(

@@ -125,7 +125,7 @@ class ClassificationLoss(nn.Module):
         elif self.mcvi:
             logsoftmax = F.log_softmax(logits[0], dim=1)
         elif self.use_samples:
-            logsoftmax = sample_softmax(logits, args.mc_samples)
+            logsoftmax = sample_softmax(logits, self.mc_samples)
 
         assert not target.requires_grad
         kl = 0.0

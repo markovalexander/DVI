@@ -117,7 +117,7 @@ if __name__ == "__main__":
         test_acc_prob = []
         test_acc_log_prob = []
 
-        print("Test prediction\n")
+        print("\nTest prediction")
         with torch.no_grad():
             for data, y_test in tqdm.tqdm(test_loader):
 

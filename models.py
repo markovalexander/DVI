@@ -48,12 +48,19 @@ class LeNetDVI(nn.Module):
 
         self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
 
+        if args.mcvi:
+            self.mcvi()
+
     def forward(self, x):
         x = self.avg_pool(self.conv1(x))
         x = self.avg_pool(self.conv2(x))
 
         x_mean = x[0]
         x_var = x[1]
+
+        if x_var is None:
+            x_var = x_mean * x_mean
+
         x_mean = x_mean.view(-1, 400)
         x_var = x_var.view(-1, 400)
         x_var = torch.diag_embed(x_var)

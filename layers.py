@@ -455,15 +455,12 @@ class MeanFieldConv2d(nn.Module):
         return z_mean, z_var
 
     def __mcvi_forward(self, x):
-        if self.certain and isinstance(x, tuple):
-            x_mean = x[0]
+        if self.certain or not self.use_det:
+            x_mean = x if not isinstance(x, tuple) else x[0]
             x_var = x_mean * x_mean
-        elif not self.certain:
+        else:
             x_mean = x[0]
             x_var = x[1]
-        else:
-            x_mean = x
-            x_var = x_mean * x_mean
 
         weights_var = torch.exp(self.weights_log_var)
         bias_var = torch.exp(self.bias_log_var)
@@ -510,8 +507,10 @@ class AveragePoolGaussian(nn.Module):
         x_mean, x_var = x
         z_mean = F.avg_pool2d(x_mean, self.kernel_size, self.stride,
                               self.padding)
-
-        n = self.kernel_size[0] * self.kernel_size[1]
-        z_var = F.avg_pool2d(x_var, self.kernel_size, self.stride,
-                             self.padding) / n
+        if x_var is None:
+            z_var = None
+        else:
+            n = self.kernel_size[0] * self.kernel_size[1]
+            z_var = F.avg_pool2d(x_var, self.kernel_size, self.stride,
+                                 self.padding) / n
         return z_mean, z_var

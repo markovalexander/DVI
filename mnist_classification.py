@@ -108,7 +108,6 @@ if __name__ == "__main__":
             accuracy.append(
                 (torch.sum(torch.squeeze(pred) == torch.squeeze(y_train),
                            dtype=torch.float32) / args.batch_size).item())
-            break
 
         elbo = np.mean(elbo)
         cat_mean = np.mean(cat_mean)

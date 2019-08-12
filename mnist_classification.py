@@ -6,8 +6,8 @@ import torch
 import tqdm
 from torch import nn
 
-from bayesian_utils import classification_posterior
-from losses import ClassificationLoss, sample_softmax
+from bayesian_utils import classification_posterior, sample_softmax
+from losses import ClassificationLoss
 from models import LinearDVI, LeNetDVI
 from utils import load_mnist, save_checkpoint, report, prepare_directory, \
     mc_prediction, one_hot_encoding

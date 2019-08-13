@@ -80,9 +80,9 @@ class LinearGaussian(nn.Module):
 
     def get_mode(self):
         if self.use_dvi:
-            print('In determenistic mode')
+            return 'In determenistic mode'
         else:
-            print('In MCVI mode')
+            return 'In MCVI mode'
 
     def forward(self, x):
         """
@@ -261,10 +261,7 @@ class ReluGaussian(nn.Module):
         return x_var * delta(rho, mu1, mu2)
 
     def get_mode(self):
-        if self.linear.use_dvi:
-            print('Using determenistic mode')
-        else:
-            print('Using MCVI')
+        return self.linear.get_mode()
 
 
 class HeavisideGaussian(nn.Module):

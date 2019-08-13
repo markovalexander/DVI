@@ -41,6 +41,8 @@ parser.add_argument('--checkpoint_dir', type=str, default='')
 parser.add_argument('--test_batch_size', type=int, default=512)
 parser.add_argument('--use_samples', action='store_true',
                     help='use mc samples for determenistic probs on test stage.')
+parser.add_argument('--swap_modes', action='store_true',
+                    help="use different modes for train and test")
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -70,7 +72,15 @@ if __name__ == "__main__":
     best_epoch = 0
     best_test_acc = - 10 ** 9
 
+    use_det_on_train = not args.mcvi
     for epoch in range(args.epochs):
+        if use_det_on_train and args.swap_modes:
+            model.determenistic()
+            args.mcvi = False
+        elif args.swap_modes:
+            model.mcvi()
+            args.mcvi = True
+
         print('\nepoch:', epoch)
         if scheduler is not None:
             scheduler.step()
@@ -118,6 +128,13 @@ if __name__ == "__main__":
         test_acc_log_prob = []
 
         print("\nTest prediction")
+        if use_det_on_train and args.swap_modes:
+            model.mcvi()
+            args.mcvi = True
+        elif args.swap_modes:
+            model.determenistic()
+            args.mcvi = False
+
         with torch.no_grad():
             for data, y_test in tqdm.tqdm(test_loader):
                 if args.arch == "fc":

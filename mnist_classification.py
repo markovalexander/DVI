@@ -120,14 +120,6 @@ if __name__ == "__main__":
         kl = np.mean(kls)
         accuracy = np.mean(accuracy)
 
-        if args.var_network:
-            i = 1
-            for layer in model.children():
-                if isinstance(layer, ReluVDO):
-                    print('{} variance layer log alpha: {:.5f}'.format(
-                        i, layer.linear.log_alpha.item()))
-                    i += 1
-
         test_acc_prob = []
         test_acc_log_prob = []
 
@@ -164,6 +156,14 @@ if __name__ == "__main__":
                                dtype=torch.float32) / args.test_batch_size).item())
 
             test_acc_prob = np.mean(test_acc_prob)
+
+        if args.var_network:
+            i = 1
+            for layer in model.children():
+                if isinstance(layer, ReluVDO):
+                    print('{} variance layer log alpha: {:.5f}'.format(
+                        i, layer.linear.log_alpha.item()))
+                    i += 1
 
         report(args.checkpoint_dir, epoch, elbo, cat_mean, kl, accuracy,
                test_acc_prob)

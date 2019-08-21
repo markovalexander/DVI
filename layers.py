@@ -613,7 +613,8 @@ class LinearVDO(nn.Module):
 
         lrt_std = torch.sqrt(1e-16 + F.linear(x * x, sigma2))
         if self.training:
-            eps = torch.Tensor(lrt_std.data.new(lrt_std.size()).normal_())
+            eps = torch.Tensor(lrt_std.data.new(lrt_std.size()).normal_()).to(
+                self.log_alpha.device)
         else:
             eps = 0.0
         return lrt_mean + lrt_std * eps, None

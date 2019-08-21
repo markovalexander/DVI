@@ -70,6 +70,7 @@ if __name__ == "__main__":
 
     use_det_on_train = not args.mcvi
     for epoch in range(args.epochs):
+        model.train()
         if use_det_on_train and args.swap_modes:
             model.determenistic()
             args.mcvi = False
@@ -131,6 +132,7 @@ if __name__ == "__main__":
             model.determenistic()
             args.mcvi = False
 
+        model.eval()
         with torch.no_grad():
             for data, y_test in tqdm.tqdm(test_loader):
                 if args.arch == "fc":

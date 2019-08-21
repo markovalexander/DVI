@@ -43,7 +43,9 @@ class LeNetDVI(nn.Module):
 
         self.conv1 = MeanFieldConv2d(1, 6, 5, padding=2, certain=True)
         self.conv2 = MeanFieldConv2d(6, 16, 5)
-        self.fc1 = ReluGaussian(16 * 5 * 5, 120)
+        self.fc1 = ReluGaussian(16 * 5 * 5,
+                                120) if not args.var_network else ReluVDO(
+            16 * 5 * 5, 120, use_det=not args.mcvi)
         self.fc2 = ReluGaussian(120, 84)
         self.fc3 = ReluGaussian(84, 10)
 

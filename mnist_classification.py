@@ -121,10 +121,12 @@ if __name__ == "__main__":
         accuracy = np.mean(accuracy)
 
         if args.var_network:
+            i = 1
             for layer in model.children():
                 if isinstance(layer, ReluVDO):
-                    print('variance layer log alpha: {:.5f}'.format(
-                        layer.linear.log_alpha.item()))
+                    print('{} variance layer log alpha: {:.5f}'.format(
+                        i, layer.linear.log_alpha.item()))
+                    i += 1
 
         test_acc_prob = []
         test_acc_log_prob = []

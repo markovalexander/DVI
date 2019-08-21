@@ -40,7 +40,7 @@ def heaviside_q(rho, mu1, mu2):
     one_over_coef_sum = (2 * arcsin_s * rho_hat) / rho_s
     one_over_coefs_prod = (arcsin_s * rho_hat * (1 + rho_hat)) / (rho * rho)
     return A * torch.exp(-(
-                mu1 * mu1 + mu2 * mu2) / one_over_coef_sum + mu1 * mu2 / one_over_coefs_prod)
+            mu1 * mu1 + mu2 * mu2) / one_over_coef_sum + mu1 * mu2 / one_over_coefs_prod)
 
 
 def relu_q(rho, mu1, mu2):
@@ -66,7 +66,7 @@ def delta(rho, mu1, mu2):
     return gaussian_cdf(mu1) * gaussian_cdf(mu2) + relu_q(rho, mu1, mu2)
 
 
-def KL_GG(p_mean, p_var, q_mean, q_var):
+def kl_gaussian(p_mean, p_var, q_mean, q_var):
     """
     Computes KL (p || q) from p to q, assuming that both p and q have normal
     distribution
@@ -82,6 +82,15 @@ def KL_GG(p_mean, p_var, q_mean, q_var):
     cross_entropy = 0.5 * (math.log(2 * math.pi) + torch.log(s_q_var) + \
                            (p_var + (p_mean - q_mean) ** 2) / s_q_var)
     return torch.sum(cross_entropy - entropy)
+
+
+def kl_loguni(log_alpha):
+    k1, k2, k3 = 0.63576, 1.8732, 1.48695
+    C = -k1
+    mdkl = k1 * torch.sigmoid(k2 + k3 * log_alpha) - 0.5 * torch.log1p(
+        torch.exp(-log_alpha)) + C
+    kl = -torch.sum(mdkl)
+    return kl
 
 
 def logsumexp_mean(y, keepdim=True):

@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from numpy import clip
 
-from bayesian_utils import logsoftmax_mean, sample_logsoftmax
+from bayesian_utils import logsoftmax_mean
 
 EPS = 1e-8
 
@@ -130,8 +130,6 @@ class ClassificationLoss(nn.Module):
         for module in self.net.children():
             if hasattr(module, 'compute_kl'):
                 kl = kl + module.compute_kl()
-        if hasattr(self.net, 'compute_kl'):
-            kl = kl + self.net.compute_kl()
 
         logprob = torch.sum(target.type(logsoftmax.type()) * logsoftmax, dim=1)
         batch_logprob = torch.mean(logprob)

@@ -7,6 +7,7 @@ import tqdm
 from torch import nn
 
 from bayesian_utils import classification_posterior, sample_softmax
+from layers import ReluVDO
 from losses import ClassificationLoss
 from models import LinearDVI, LeNetDVI
 from utils import load_mnist, save_checkpoint, report, prepare_directory, \
@@ -15,12 +16,6 @@ from utils import load_mnist, save_checkpoint, report, prepare_directory, \
 np.random.seed(42)
 
 EPS = 1e-6
-
-# TODO: посмотреть галазами на сэмплы внутри слоев (после того как все научится)
-
-# TODO: попрофилировать
-
-# TODO у монтекарло как-то елбо лучше получается
 
 parser = argparse.ArgumentParser()
 
@@ -43,6 +38,7 @@ parser.add_argument('--use_samples', action='store_true',
                     help='use mc samples for determenistic probs on test stage.')
 parser.add_argument('--swap_modes', action='store_true',
                     help="use different modes for train and test")
+parser.add_argument('--var_network', action='store_true')
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -124,6 +120,12 @@ if __name__ == "__main__":
         kl = np.mean(kls)
         accuracy = np.mean(accuracy)
 
+        if args.var_network:
+            for layer in model.children():
+                if isinstance(layer, ReluVDO):
+                    print('variance layer log alpha: {:.5f}'.format(
+                        layer.linear.log_alpha.item()))
+
         test_acc_prob = []
         test_acc_log_prob = []
 
@@ -169,7 +171,9 @@ if __name__ == "__main__":
             'state_dict': model.state_dict(),
             'elbo': elbo,
             'train_accuracy': accuracy,
-            'test_accuracy (probs)': test_acc_prob
+            'test_accuracy': test_acc_prob,
+            'kl': kl,
+            'll': cat_mean
         }
 
         save_checkpoint(state, args.checkpoint_dir,

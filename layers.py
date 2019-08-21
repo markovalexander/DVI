@@ -1,10 +1,13 @@
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal, Independent, Normal
 
-from bayesian_utils import KL_GG, softrelu, delta, heaviside_q, gaussian_cdf, \
-    matrix_diag_part, standard_gaussian
+from bayesian_utils import kl_gaussian, softrelu, delta, heaviside_q, \
+    gaussian_cdf, \
+    matrix_diag_part, standard_gaussian, kl_loguni
 
 EPS = 1e-6
 
@@ -64,12 +67,12 @@ class LinearGaussian(nn.Module):
 
     def compute_kl(self):
         if self.prior == 'DiagonalGaussian':
-            kl_A = KL_GG(self.A_mean, torch.exp(self.A_logvar),
-                         self._prior_A_mean,
-                         self._prior_A_var)
-            kl_b = KL_GG(self.b_mean, torch.exp(self.b_logvar),
-                         self._prior_b_mean,
-                         self._prior_b_var)
+            kl_A = kl_gaussian(self.A_mean, torch.exp(self.A_logvar),
+                               self._prior_A_mean,
+                               self._prior_A_var)
+            kl_b = kl_gaussian(self.b_mean, torch.exp(self.b_logvar),
+                               self._prior_b_mean,
+                               self._prior_b_var)
         return kl_A + kl_b
 
     def determenistic(self, mode=True):
@@ -390,12 +393,13 @@ class MeanFieldConv2d(nn.Module):
 
     def compute_kl(self):
         # device = self.weights_mean.device
-        weights_kl = KL_GG(self.weights_mean, torch.exp(self.weights_log_var),
-                           self._weight_prior_mean,
-                           self._weight_prior_var)
-        bias_kl = KL_GG(self.bias_mean, torch.exp(self.bias_log_var),
-                        self._bias_prior_mean,
-                        self._bias_prior_var)
+        weights_kl = kl_gaussian(self.weights_mean,
+                                 torch.exp(self.weights_log_var),
+                                 self._weight_prior_mean,
+                                 self._weight_prior_var)
+        bias_kl = kl_gaussian(self.bias_mean, torch.exp(self.bias_log_var),
+                              self._bias_prior_mean,
+                              self._bias_prior_var)
         return weights_kl + bias_kl
 
     def get_mode(self):
@@ -511,3 +515,125 @@ class AveragePoolGaussian(nn.Module):
             z_var = F.avg_pool2d(x_var, self.kernel_size, self.stride,
                                  self.padding) / n
         return z_mean, z_var
+
+
+class LinearVDO(nn.Module):
+
+    def __init__(self, in_features, out_features, prior='loguni',
+                 alpha_shape=(1, 1), bias=True, use_det=False):
+        super(LinearVDO, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.alpha_shape = alpha_shape
+        self.W = nn.Parameter(torch.Tensor(out_features, in_features))
+        self.log_alpha = nn.Parameter(torch.Tensor(*alpha_shape))
+        if bias:
+            self.bias = nn.Parameter(torch.Tensor(1, out_features))
+        else:
+            self.register_parameter('bias', None)
+        self.reset_parameters()
+        self.zero_mean = False
+        self.permute_sigma = False
+        self.prior = prior
+        self.use_det = use_det
+
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.W.size(1))
+        self.W.data.uniform_(-stdv, stdv)
+        self.log_alpha.data.fill_(-5.0)
+        if self.bias is not None:
+            self.bias.data.zero_()
+
+    def forward(self, x):
+        if self.use_det:
+            return self.__det_forward(x)
+        else:
+            return self.__mcvi_forward(x)
+
+    def __det_forward(self, x):
+        x_mean = x[0]
+        x_var = x[1]
+
+        sigma2 = torch.exp(self.log_alpha) * self.W.t() * self.W.t()
+        if self.zero_mean:
+            y_mean = 0.0
+        else:
+            y_mean = F.linear(x_mean, self.W)
+        if self.bias is not None:
+            y_mean = y_mean + self.bias
+
+        y_var = self.compute_var(x_mean, x_var, self.W.t(), sigma2)
+        return y_mean, y_var
+
+    def compute_var(self, x_mean, x_var, weights_mean, weights_var):
+        x_var_diag = matrix_diag_part(x_var)
+        xx_mean = x_var_diag + x_mean * x_mean
+
+        term1_diag = torch.matmul(xx_mean, weights_var)
+
+        flat_xCov = torch.reshape(x_var, (-1, weights_mean.size(0)))  # [b*x, x]
+        xCov_A = torch.matmul(flat_xCov, weights_mean)  # [b * x, y]
+        xCov_A = torch.reshape(xCov_A, (
+            -1, weights_mean.size(0), weights_mean.size(1)))  # [b, x, y]
+        xCov_A = torch.transpose(xCov_A, 1, 2)  # [b, y, x]
+        xCov_A = torch.reshape(xCov_A, (-1, weights_mean.size(0)))  # [b*y, x]
+
+        A_xCov_A = torch.matmul(xCov_A, weights_mean)  # [b*y, y]
+        A_xCov_A = torch.reshape(A_xCov_A, (
+            -1, weights_mean.size(1), weights_mean.size(1)))  # [b, y, y]
+
+        term2 = A_xCov_A
+        term2_diag = matrix_diag_part(term2)
+
+        _, n, _ = term2.size()
+        idx = torch.arange(0, n)
+
+        result_diag = term1_diag + term2_diag
+
+        result = term2
+        result[:, idx, idx] = result_diag
+        return result
+
+    def __mcvi_forward(self, x):
+        if isinstance(x, tuple):
+            x = x[0]
+
+        if self.zero_mean:
+            lrt_mean = 0.0
+        else:
+            lrt_mean = F.linear(x, self.W)
+        if self.bias is not None:
+            lrt_mean = lrt_mean + self.bias
+
+        sigma2 = torch.exp(self.log_alpha) * self.W * self.W
+        if self.permute_sigma:
+            sigma2 = sigma2.view(-1)[
+                torch.randperm(self.in_features * self.out_features).to()].view(
+                self.out_features, self.in_features)
+
+        lrt_std = torch.sqrt(1e-16 + F.linear(x * x, sigma2))
+        if self.training:
+            eps = torch.Tensor(lrt_std.data.new(lrt_std.size()).normal_())
+        else:
+            eps = 0.0
+        return lrt_mean + lrt_std * eps, None
+
+    def compute_kl(self):
+        return self.W.nelement() * kl_loguni(
+            self.log_alpha) / self.log_alpha.nelement()
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(' \
+               + 'in_features=' + str(self.in_features) \
+               + ', out_features=' + str(self.out_features) \
+               + ', alpha_shape=' + str(self.alpha_shape) \
+               + ', prior=' + self.prior \
+               + ', bias=' + str(self.bias is not None) + ')' ', bias=' + str(
+            self.bias is not None) + ')'
+
+
+class ReluVDO(ReluGaussian):
+    def __init__(self, in_features, out_features, use_det=False):
+        super().__init__(in_features, out_features)
+        self.linear = LinearVDO(in_features, out_features, use_det=use_det)
+        self.use_dvi = use_det

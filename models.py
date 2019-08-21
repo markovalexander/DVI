@@ -2,14 +2,15 @@ import torch
 from torch import nn
 
 from layers import LinearGaussian, ReluGaussian, MeanFieldConv2d, \
-    AveragePoolGaussian
+    AveragePoolGaussian, ReluVDO
 
 
 class LinearDVI(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.fc1 = LinearGaussian(28 * 28, 300, certain=True)
-        self.fc2 = ReluGaussian(300, 100)
+        self.fc2 = ReluGaussian(300, 100) if not args.var_network else ReluVDO(
+            300, 100, use_det=not args.mcvi)
         self.fc3 = ReluGaussian(100, 10)
 
         if args.mcvi:

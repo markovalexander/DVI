@@ -1,7 +1,5 @@
 import math
 import os
-import tqdm
-import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -197,14 +195,10 @@ def save_checkpoint(state, dir, filename):
     torch.save(state, os.path.join(dir, filename))
 
 
-def load_checkpoint(model, filename):
+def load_checkpoint(experiment, name='last.pth.tar'):
+    filename = os.path.join('checkpoints', experiment, name)
     checkpoint = torch.load(filename)
-
-    epoch = checkpoint['epoch']
-    accuracy = checkpoint['accuracy']
-    elbo = checkpoint['elbo']
-    model.load_state_dict(checkpoint['state_dict'])
-    return epoch, accuracy, elbo
+    return checkpoint['state_dict']
 
 
 def report(dir, epoch, elbo, cat_mean, kl, accuracy, test_acc_prob):

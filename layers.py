@@ -267,7 +267,7 @@ class ReluVDO(LinearVDO):
         return z_mean, z_var
 
 
-class DetermenisticLinear(LinearGaussian):
+class DetermenisticReluLinear(ReluGaussian):
     def __init__(self, in_features, out_features, certain=False,
                  deterministic=True):
         """

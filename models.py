@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 from layers import LinearGaussian, ReluGaussian, MeanFieldConv2d, \
-    AveragePoolGaussian, ReluVDO
+    AveragePoolGaussian, ReluVDO, DetermenisticReluLinear
 
 
 class LinearDVI(nn.Module):
@@ -35,7 +35,7 @@ class LinearVDO(nn.Module):
         if args.n_var_layers > 1:
             self.fc3 = ReluVDO(100, 10)
         else:
-            self.fc3 = ReluGaussian(100, 10)
+            self.fc3 = DetermenisticReluLinear(100, 10)
 
         if args.mcvi:
             self.set_flag('deterministic', False)
@@ -109,12 +109,12 @@ class LeNetVDO(nn.Module):
         if args.n_var_layers > 1:
             self.fc2 = ReluVDO(500, 100)
         else:
-            self.fc2 = ReluGaussian(500, 100)
+            self.fc2 = DetermenisticReluLinear(500, 100)
 
         if args.n_var_layers > 2:
             self.fc3 = ReluVDO(100, 10)
         else:
-            self.fc3 = ReluGaussian(100, 10)
+            self.fc3 = DetermenisticReluLinear(100, 10)
 
         self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
 

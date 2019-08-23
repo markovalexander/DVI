@@ -66,17 +66,62 @@ def delta(rho, mu1, mu2):
     return gaussian_cdf(mu1) * gaussian_cdf(mu2) + relu_q(rho, mu1, mu2)
 
 
-def kl_gaussian(p_mean, p_var, q_mean, q_var):
+def compute_linear_var(x_mean, x_var, weights_mean, weights_var, bias_mean,
+                       bias_var):
+    x_var_diag = matrix_diag_part(x_var)
+    xx_mean = x_var_diag + x_mean * x_mean
+
+    term1_diag = torch.matmul(xx_mean, weights_var)
+
+    flat_xCov = torch.reshape(x_var, (-1, weights_mean.size(0)))
+
+    xCov_A = torch.matmul(flat_xCov, weights_mean)
+    xCov_A = torch.reshape(xCov_A, (
+        -1, weights_mean.size(0), weights_mean.size(1)))
+
+    xCov_A = torch.transpose(xCov_A, 1, 2)
+    xCov_A = torch.reshape(xCov_A, (-1, weights_mean.size(0)))
+
+    A_xCov_A = torch.matmul(xCov_A, weights_mean)
+    A_xCov_A = torch.reshape(A_xCov_A, (
+        -1, weights_mean.size(1), weights_mean.size(1)))
+
+    term2 = A_xCov_A
+    term2_diag = matrix_diag_part(term2)
+
+    _, n, _ = term2.size()
+    idx = torch.arange(0, n)
+
+    term3_diag = bias_var
+    result_diag = term1_diag + term2_diag + term3_diag
+
+    result = term2
+    result[:, idx, idx] = result_diag
+    return result
+
+
+def compute_relu_var(x_var, x_var_diag, mu):
+    mu1 = torch.unsqueeze(mu, 2)
+    mu2 = mu1.permute(0, 2, 1)
+
+    s11s22 = torch.unsqueeze(x_var_diag, dim=2) * torch.unsqueeze(
+        x_var_diag, dim=1)
+    rho = x_var / (torch.sqrt(s11s22) + EPS)
+    rho = torch.clamp(rho, -1 / (1 + EPS), 1 / (1 + EPS))
+    return x_var * delta(rho, mu1, mu2)
+
+
+def kl_gaussian(p_mean, p_var, prior):
     """
-    Computes KL (p || q) from p to q, assuming that both p and q have normal
-    distribution
+    Computes KL (p || q) from p to q, assuming that both p and q have diagonal
+    gaussian distributions
 
     :param p_mean:
     :param p_var:
-    :param q_mean:
-    :param q_var:
+    :param prior:
     :return:
     """
+    q_mean, q_var = prior['mean'], prior['var']
     s_q_var = q_var + EPS
     entropy = 0.5 * (1 + math.log(2 * math.pi) + torch.log(p_var))
     cross_entropy = 0.5 * (math.log(2 * math.pi) + torch.log(s_q_var) + \

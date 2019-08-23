@@ -41,13 +41,11 @@ class LeNetDVI(nn.Module):
     def __init__(self, args):
         super().__init__()
 
-        self.conv1 = MeanFieldConv2d(1, 6, 5, padding=2, certain=True)
-        self.conv2 = MeanFieldConv2d(6, 16, 5)
-        self.fc1 = ReluGaussian(16 * 5 * 5,
-                                120) if not args.var_network else ReluVDO(
-            16 * 5 * 5, 120, use_det=not args.mcvi)
-        self.fc2 = ReluGaussian(120, 84)
-        self.fc3 = ReluGaussian(84, 10)
+        self.conv1 = MeanFieldConv2d(1, 20, 5, padding=2, certain=True)
+        self.conv2 = MeanFieldConv2d(20, 50, 5)
+        self.fc1 = ReluGaussian(800, 500)
+        self.fc2 = ReluGaussian(500, 100)
+        self.fc3 = ReluGaussian(100, 10)
 
         self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
 

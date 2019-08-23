@@ -201,11 +201,14 @@ def load_checkpoint(experiment, name='last.pth.tar'):
     return checkpoint['state_dict']
 
 
-def report(dir, epoch, elbo, cat_mean, kl, accuracy, test_acc_prob):
+def report(dir, epoch, elbo, cat_mean, kl, accuracy, test_acc_prob,
+           zero_mean_acc=None):
     message = "\nELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}\n".format(
         elbo, cat_mean, kl)
     message += "train accuracy: {:.4f}\t".format(accuracy)
-    message += "test_accuracy(probs): {:.4f}\t".format(test_acc_prob)
+    message += "test_accuracy: {:.4f}\t".format(test_acc_prob)
+    if zero_mean_acc is not None:
+        message += "zero_mean_acc: {:.4f}\t".format(zero_mean_acc)
     print(message)
 
     message = "\nepoch: {}\n".format(epoch) + message

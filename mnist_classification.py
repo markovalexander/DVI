@@ -78,6 +78,7 @@ if __name__ == "__main__":
     use_det_on_train = not args.mcvi
     for epoch in range(args.epochs):
         model.train()
+        model.set_flag('zero_mean', False)
 
         if use_det_on_train and args.swap_modes:
             model.set_flag('deterministic', True)
@@ -129,9 +130,6 @@ if __name__ == "__main__":
         kl = np.mean(kls)
         accuracy = np.mean(accuracy)
 
-        test_acc_prob = []
-        test_acc_log_prob = []
-
         print("\nTest prediction")
         if use_det_on_train and args.swap_modes:
             model.set_flag('deterministic', False)
@@ -141,6 +139,9 @@ if __name__ == "__main__":
             args.mcvi = False
 
         model.eval()
+
+        test_acc_prob = []
+        test_acc_log_prob = []
         with torch.no_grad():
             for data, y_test in tqdm.tqdm(test_loader):
                 if args.arch == "fc":
@@ -167,11 +168,40 @@ if __name__ == "__main__":
 
             test_acc_prob = np.mean(test_acc_prob)
 
+        zero_mean_acc = None
         if args.var_network:
-            model.print_alphas()
+            model.zero_mean()
+            zero_mean_acc = []
+            with torch.no_grad():
+                for data, y_test in tqdm.tqdm(test_loader):
+                    if args.arch == "fc":
+                        x = data.view(-1, 28 * 28).to(args.device)
+                    else:
+                        x = data.to(args.device)
 
+                    y = y_test.to(args.device)
+
+                    if args.mcvi:
+                        probs = mc_prediction(model, x, args.mc_samples)
+                    elif args.use_samples:
+                        activations = model(x)
+                        probs = sample_softmax(activations,
+                                               n_samples=args.mc_samples)
+                    else:
+                        activations = model(x)
+                        probs = classification_posterior(activations)
+
+                    pred = torch.argmax(probs, dim=1)
+                    zero_mean_acc.append(
+                        (torch.sum(torch.squeeze(pred) == torch.squeeze(y),
+                                   dtype=torch.float32) / args.test_batch_size).item())
+
+            model.zero_mean(False)
+            zero_mean_acc = np.mean(zero_mean_acc)
+
+        model.print_alphas()
         report(args.checkpoint_dir, epoch, elbo, cat_mean, kl, accuracy,
-               test_acc_prob)
+               test_acc_prob, zero_mean_acc)
 
         state = {
             'epoch': epoch,
@@ -179,6 +209,7 @@ if __name__ == "__main__":
             'elbo': elbo,
             'train_accuracy': accuracy,
             'test_accuracy': test_acc_prob,
+            'zero_mean_acc': zero_mean_acc,
             'kl': kl,
             'll': cat_mean
         }

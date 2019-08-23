@@ -33,22 +33,22 @@ class LinearGaussian(nn.Module):
         self.W_logvar = nn.Parameter(torch.Tensor(in_features, out_features))
         self.bias_logvar = nn.Parameter(torch.Tensor(out_features))
 
-        self.__initialize_weights()
-        self.__construct_priors()
+        self._initialize_weights()
+        self._construct_priors()
 
         self.certain = certain
         self.deterministic = deterministic
         self.mean_forward = False
         self.zero_mean = False
 
-    def __initialize_weights(self):
+    def _initialize_weights(self):
         nn.init.xavier_normal_(self.W)
         nn.init.normal_(self.bias)
 
         nn.init.uniform_(self.W_logvar, a=-10, b=-7)
         nn.init.uniform_(self.bias_logvar, a=-10, b=-7)
 
-    def __construct_priors(self):
+    def _construct_priors(self):
         self.W_mean_prior = nn.Parameter(torch.zeros_like(self.W),
                                          requires_grad=False)
         self.W_var_prior = nn.Parameter(torch.ones_like(self.W_logvar) * 0.1,
@@ -86,17 +86,17 @@ class LinearGaussian(nn.Module):
                  tuple (sample, None) for MCVI mode,
                  sample : [batch, out_features] - local reparametrization of output
         """
-        x = self.__apply_activation(x)
+        x = self._apply_activation(x)
         if self.zero_mean:
-            return self.__zero_mean_forward(x)
+            return self._zero_mean_forward(x)
         elif self.mean_forward:
-            return self.__mean_forward(x)
+            return self._mean_forward(x)
         elif self.deterministic:
-            return self.__det_forward(x)
+            return self._det_forward(x)
         else:
-            return self.__mcvi_forward(x)
+            return self._mcvi_forward(x)
 
-    def __mcvi_forward(self, x):
+    def _mcvi_forward(self, x):
         W_var = torch.exp(self.W_logvar)
         bias_var = torch.exp(self.bias_logvar)
 
@@ -120,7 +120,7 @@ class LinearGaussian(nn.Module):
         sample = dst.rsample()
         return sample, None
 
-    def __det_forward(self, x):
+    def _det_forward(self, x):
         W_var = torch.exp(self.W_logvar)
         bias_var = torch.exp(self.bias_logvar)
 
@@ -142,7 +142,7 @@ class LinearGaussian(nn.Module):
 
         return y_mean, y_var
 
-    def __mean_forward(self, x):
+    def _mean_forward(self, x):
         if not isinstance(x, tuple):
             x_mean = x
         else:
@@ -151,7 +151,7 @@ class LinearGaussian(nn.Module):
         y_mean = F.linear(x_mean, self.W.t()) + self.bias
         return y_mean, None
 
-    def __zero_mean_forward(self, x):
+    def _zero_mean_forward(self, x):
         if not isinstance(x, tuple):
             x_mean = x
             x_var = None
@@ -159,7 +159,7 @@ class LinearGaussian(nn.Module):
             x_mean = x[0]
             x_var = x[1]
 
-        y_mean = 0 + self.bias
+        y_mean = F.linear(x_mean, torch.zeros_like(self.W).t()) + self.bias
 
         W_var = torch.exp(self.W_logvar)
         bias_var = torch.exp(self.bias_logvar)
@@ -178,7 +178,7 @@ class LinearGaussian(nn.Module):
             sample = dst.rsample()
             return sample, None
 
-    def __apply_activation(self, x):
+    def _apply_activation(self, x):
         return x
 
     def __repr__(self):
@@ -188,7 +188,7 @@ class LinearGaussian(nn.Module):
 
 
 class ReluGaussian(LinearGaussian):
-    def __apply_activation(self, x):
+    def _apply_activation(self, x):
         x_mean = x[0]
         x_var = x[1]
 
@@ -211,31 +211,10 @@ class LinearVDO(LinearGaussian):
                  alpha_shape=(1, 1), certain=False, deterministic=True):
         super(LinearVDO, self).__init__(in_features, out_features, certain,
                                         deterministic)
-        self.in_features = in_features
-        self.out_features = out_features
         self.alpha_shape = alpha_shape
         self.log_alpha = nn.Parameter(torch.Tensor(*alpha_shape))
-
-        self.W = nn.Parameter(torch.Tensor(in_features, out_features))
-        self.bias = nn.Parameter(torch.Tensor(out_features))
-
-        self.W_logvar = nn.Parameter(torch.Tensor(in_features, out_features))
-        self.bias_logvar = nn.Parameter(torch.Tensor(out_features))
-
-        self.__initialize_weights()
-
-        self.certain = certain
-        self.deterministic = deterministic
-        self.mean_forward = False
-        self.zero_mean = False
-
-    def __initialize_weights(self):
-        nn.init.xavier_normal_(self.W)
-        nn.init.normal_(self.bias)
-
-        nn.init.uniform_(self.W_logvar, a=-10, b=-7)
-        nn.init.uniform_(self.bias_logvar, a=-10, b=-7)
         self.log_alpha.data.fill_(-5.0)
+        self.zero_mean = False
 
     def compute_kl(self):
         return self.W.nelement() * kl_loguni(
@@ -249,7 +228,7 @@ class LinearVDO(LinearGaussian):
 
 
 class ReluVDO(LinearVDO):
-    def __apply_activation(self, x):
+    def _apply_activation(self, x):
         x_mean = x[0]
         x_var = x[1]
 
@@ -281,31 +260,8 @@ class DetermenisticReluLinear(ReluGaussian):
         """
 
         super().__init__(in_features, out_features, certain, deterministic)
-
-        self.in_features = in_features
-        self.out_features = out_features
-
-        self.W = nn.Parameter(torch.Tensor(in_features, out_features))
-        self.bias = nn.Parameter(torch.Tensor(out_features))
-
-        self.W_logvar = nn.Parameter(torch.Tensor(in_features, out_features),
-                                     requires_grad=False)
-        self.bias_logvar = nn.Parameter(torch.Tensor(out_features),
-                                        requires_grad=False)
-
-        self.__initialize_weights()
-
-        self.certain = certain
-        self.deterministic = deterministic
-        self.mean_forward = False
-        self.zero_mean = False
-
-    def __initialize_weights(self):
-        nn.init.xavier_normal_(self.W)
-        nn.init.normal_(self.bias)
-
-        self.W_logvar.data.fill_(-5.0)
-        self.bias_logvar.data.fill_(-5.0)
+        self.W_logvar.requires_grad = False
+        self.bias_logvar.requires_grad = False
 
     def compute_kl(self):
         return 0
@@ -335,22 +291,22 @@ class MeanFieldConv2d(nn.Module):
         self.bias = nn.Parameter(torch.Tensor(out_channels))
         self.bias_logvar = nn.Parameter(torch.Tensor(out_channels))
 
-        self.__initialize_weights()
-        self.__construct_priors()
+        self._initialize_weights()
+        self._construct_priors()
 
         self.certain = certain
         self.deterministic = deterministic
         self.mean_forward = False
         self.zero_mean = False
 
-    def __initialize_weights(self):
+    def _initialize_weights(self):
         nn.init.xavier_normal_(self.W)
         nn.init.normal_(self.bias)
 
         nn.init.uniform_(self.W_logvar, a=-10, b=-7)
         nn.init.uniform_(self.bias_logvar, a=-10, b=-7)
 
-    def __construct_priors(self):
+    def _construct_priors(self):
         self.W_mean_prior = nn.Parameter(torch.zeros_like(self.W),
                                          requires_grad=False)
         self.W_var_prior = nn.Parameter(torch.ones_like(self.W_logvar) * 0.1,
@@ -376,17 +332,17 @@ class MeanFieldConv2d(nn.Module):
                 m.set_flag(flag_name, value)
 
     def forward(self, x):
-        x = self.__apply_activation(x)
+        x = self._apply_activation(x)
         if self.zero_mean:
-            return self.__zero_mean_forward(x)
+            return self._zero_mean_forward(x)
         elif self.mean_forward:
-            return self.__mean_forward(x)
+            return self._mean_forward(x)
         elif self.deterministic:
-            return self.__det_forward(x)
+            return self._det_forward(x)
         else:
-            return self.__mcvi_forward(x)
+            return self._mcvi_forward(x)
 
-    def __zero_mean_forward(self, x):
+    def _zero_mean_forward(self, x):
         if self.certain or not self.deterministic:
             x_mean = x if not isinstance(x, tuple) else x[0]
             x_var = x_mean * x_mean
@@ -410,7 +366,7 @@ class MeanFieldConv2d(nn.Module):
             sample = dst.rsample()
             return sample, None
 
-    def __mean_forward(self, x):
+    def _mean_forward(self, x):
         if not isinstance(x, tuple):
             x_mean = x
         else:
@@ -421,7 +377,7 @@ class MeanFieldConv2d(nn.Module):
                           self.padding)
         return z_mean, None
 
-    def __det_forward(self, x):
+    def _det_forward(self, x):
         if self.certain and isinstance(x, tuple):
             x_mean = x[0]
             x_var = x_mean * x_mean
@@ -442,7 +398,7 @@ class MeanFieldConv2d(nn.Module):
                          self.padding)
         return z_mean, z_var
 
-    def __mcvi_forward(self, x):
+    def _mcvi_forward(self, x):
         if self.certain or not self.deterministic:
             x_mean = x if not isinstance(x, tuple) else x[0]
             x_var = x_mean * x_mean
@@ -463,7 +419,7 @@ class MeanFieldConv2d(nn.Module):
         sample = dst.rsample()
         return sample, None
 
-    def __apply_activation(self, x):
+    def _apply_activation(self, x):
         if self.activation == 'relu' and not self.certain:
             x_mean, x_var = x
             if x_var is None:

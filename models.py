@@ -50,6 +50,11 @@ class LinearVDO(nn.Module):
             if hasattr(m, 'set_flag'):
                 m.set_flag(flag_name, value)
 
+    def zero_mean(self, mode=True):
+        for layer in self.children():
+            if isinstance(layer, ReluVDO):
+                layer.set_flag('zero_mean', mode)
+
     def print_alphas(self):
         i = 1
         for layer in self.children():
@@ -120,6 +125,11 @@ class LeNetVDO(nn.Module):
 
         if args.mcvi:
             self.set_flag('deterministic', False)
+
+    def zero_mean(self, mode=True):
+        for layer in self.children():
+            if isinstance(layer, ReluVDO):
+                layer.set_flag('zero_mean', mode)
 
     def forward(self, x):
         x = self.avg_pool(self.conv1(x))

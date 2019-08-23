@@ -49,8 +49,7 @@ def relu_q(rho, mu1, mu2):
 
     """
     rho_hat_plus_one = torch.sqrt(1 - rho * rho) + 1
-    g_r = torch.asin(
-        rho) - rho / rho_hat_plus_one  # why minus? why no brackets?
+    g_r = torch.asin(rho) - rho / rho_hat_plus_one
 
     rho_s = torch.abs(rho) + EPS
     g_r_s = torch.abs(g_r) + EPS
@@ -108,6 +107,7 @@ def compute_relu_var(x_var, x_var_diag, mu):
         x_var_diag, dim=1)
     rho = x_var / (torch.sqrt(s11s22) + EPS)
     rho = torch.clamp(rho, -1 / (1 + EPS), 1 / (1 + EPS))
+
     return x_var * delta(rho, mu1, mu2)
 
 

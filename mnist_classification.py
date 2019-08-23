@@ -106,24 +106,34 @@ if __name__ == "__main__":
             y_ohe = one_hot_encoding(y_train[:, None], 10, args.device)
             y_logits = model(x_train)
 
+            print('*' * 50, end='\n\n')
+
+            print('compute loss....')
             loss, categorical_mean, kl, logsoftmax = criterion(y_logits,
                                                                y_ohe)
+            print('finished')
 
             pred = torch.argmax(logsoftmax, dim=1)
+            print('backward...')
             loss.backward()
+            print('finished')
 
+            print('optimizer step...')
             if args.clip_grad > 0:
                 nn.utils.clip_grad.clip_grad_value_(model.parameters(),
                                                     args.clip_grad)
 
             optimizer.step()
+            print('finished')
 
+            print('accuracy...')
             elbo.append(-loss.item())
             cat_mean.append(categorical_mean.item())
             kls.append(kl.item())
             accuracy.append(
                 (torch.sum(torch.squeeze(pred) == torch.squeeze(y_train),
                            dtype=torch.float32) / args.batch_size).item())
+            print('finished')
 
         elbo = np.mean(elbo)
         cat_mean = np.mean(cat_mean)

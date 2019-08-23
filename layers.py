@@ -294,7 +294,6 @@ class DetermenisticReluLinear(ReluGaussian):
                                         requires_grad=False)
 
         self.__initialize_weights()
-        self.__construct_priors()
 
         self.certain = certain
         self.deterministic = deterministic
@@ -305,20 +304,11 @@ class DetermenisticReluLinear(ReluGaussian):
         nn.init.xavier_normal_(self.W)
         nn.init.normal_(self.bias)
 
-        self.W_logvar.data.fill_(-10.0)
-        self.bias_logvar.data.fill_(-10.0)
+        self.W_logvar.data.fill_(-5.0)
+        self.bias_logvar.data.fill_(-5.0)
 
-    def __construct_priors(self):
-        self.W_mean_prior = nn.Parameter(torch.zeros_like(self.W),
-                                         requires_grad=False)
-        self.W_var_prior = nn.Parameter(torch.ones_like(self.W_logvar) * 0.1,
-                                        requires_grad=False)
-
-        self.bias_mean_prior = nn.Parameter(torch.zeros_like(self.bias),
-                                            requires_grad=False)
-        self.bias_var_prior = nn.Parameter(
-            torch.ones_like(self.bias_logvar) * 0.1,
-            requires_grad=False)
+    def compute_kl(self):
+        return 0
 
 
 class MeanFieldConv2d(nn.Module):
@@ -492,7 +482,7 @@ class MeanFieldConv2d(nn.Module):
         return self.__class__.__name__ + '(' \
                + 'in_channels=' + str(self.in_channels) \
                + ', out_channels=' + str(self.out_channels) \
-               + ', kernel_size= ' + str(self.kernel_size) \
+               + ', kernel_size=' + str(self.kernel_size) \
                + ', stride=' + str(self.stride) \
                + ', padding=' + str(self.padding) \
                + ', activation=' + str(self.activation) + ')'
@@ -527,6 +517,6 @@ class AveragePoolGaussian(nn.Module):
 
     def __repr__(self):
         return self.__class__.__name__ + '(' \
-               + ', kernel_size= ' + str(self.kernel_size) \
+               + 'kernel_size= ' + str(self.kernel_size) \
                + ', stride=' + str(self.stride) \
                + ', padding=' + str(self.padding) + ')'

@@ -7,9 +7,8 @@ import tqdm
 from torch import nn
 
 from bayesian_utils import classification_posterior, sample_softmax
-from layers import ReluVDO
 from losses import ClassificationLoss
-from models import LinearDVI, LeNetDVI
+from models import LinearDVI, LeNetDVI, LinearVDO, LeNetVDO
 from utils import load_mnist, save_checkpoint, report, prepare_directory, \
     mc_prediction, one_hot_encoding
 
@@ -19,26 +18,28 @@ EPS = 1e-6
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--batch_size', type=int, default=64)
-parser.add_argument('--mcvi', action='store_true')
-parser.add_argument('--arch', type=str, default="fc")
 parser.add_argument('--device', type=int, default=0)
-parser.add_argument('--anneal_updates', type=int, default=1)
-parser.add_argument('--warmup_updates', type=int, default=0)
+parser.add_argument('--arch', type=str, default="lenet")
+parser.add_argument('--anneal_updates', type=int, default=20)
+parser.add_argument('--warmup_updates', type=int, default=30)
+parser.add_argument('--mcvi', action='store_true')
+parser.add_argument('--mc_samples', default=10, type=int)
+parser.add_argument('--clip_grad', type=float, default=0.5)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--gamma', type=float, default=0.5,
                     help='lr decrease rate in MultiStepLR scheduler')
-parser.add_argument('--epochs', type=int, default=100)
-parser.add_argument('--milestones', nargs='+', type=int, default=[])
-parser.add_argument('--mc_samples', default=10, type=int)
-parser.add_argument('--clip_grad', type=float, default=0.1)
-parser.add_argument('--checkpoint_dir', type=str, default='')
-parser.add_argument('--test_batch_size', type=int, default=512)
+parser.add_argument('--milestones', nargs='+', type=int,
+                    default=[30, 50, 80, 95, 120])
+parser.add_argument('--epochs', type=int, default=150)
+parser.add_argument('--batch_size', type=int, default=32)
+parser.add_argument('--test_batch_size', type=int, default=32)
 parser.add_argument('--use_samples', action='store_true',
                     help='use mc samples for determenistic probs on test stage.')
 parser.add_argument('--swap_modes', action='store_true',
                     help="use different modes for train and test")
 parser.add_argument('--var_network', action='store_true')
+parser.add_argument('--n_var_layers', type=int, default=1)
+parser.add_argument('--checkpoint_dir', type=str, default='')
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -50,10 +51,14 @@ if __name__ == "__main__":
 
     prepare_directory(args)
 
-    if args.arch.strip().lower() == "fc":
+    if args.arch.strip().lower() == "fc" and not args.var_network:
         model = LinearDVI(args).to(args.device)
-    else:
+    elif args.arch.strip().lower() == "fc" and args.var_network:
+        model = LinearVDO(args).to(args.device)
+    elif args.arch.strip().lower() == "lenet" and not args.var_network:
         model = LeNetDVI(args).to(args.device)
+    else:
+        model = LeNetVDO(args).to(args.device)
 
     criterion = ClassificationLoss(model, args)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -71,11 +76,12 @@ if __name__ == "__main__":
     use_det_on_train = not args.mcvi
     for epoch in range(args.epochs):
         model.train()
+
         if use_det_on_train and args.swap_modes:
-            model.determenistic()
+            model.set_flag('deterministic', True)
             args.mcvi = False
         elif args.swap_modes:
-            model.mcvi()
+            model.set_flag('deterministic', False)
             args.mcvi = True
 
         print('\nepoch:', epoch)
@@ -126,10 +132,10 @@ if __name__ == "__main__":
 
         print("\nTest prediction")
         if use_det_on_train and args.swap_modes:
-            model.mcvi()
+            model.set_flag('deterministic', False)
             args.mcvi = True
         elif args.swap_modes:
-            model.determenistic()
+            model.set_flag('deterministic', True)
             args.mcvi = False
 
         model.eval()
@@ -160,12 +166,7 @@ if __name__ == "__main__":
             test_acc_prob = np.mean(test_acc_prob)
 
         if args.var_network:
-            i = 1
-            for layer in model.children():
-                if isinstance(layer, ReluVDO):
-                    print('{} variance layer log alpha: {:.5f}'.format(
-                        i, layer.linear.log_alpha.item()))
-                    i += 1
+            model.print_alphas()
 
         report(args.checkpoint_dir, epoch, elbo, cat_mean, kl, accuracy,
                test_acc_prob)

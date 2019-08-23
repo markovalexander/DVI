@@ -49,24 +49,22 @@ class LinearGaussian(nn.Module):
         nn.init.uniform_(self.bias_logvar, a=-10, b=-7)
 
     def __construct_priors(self):
-        self.weights_prior = {
-            'mean': nn.Parameter(torch.zeros_like(self.W), requires_grad=False),
-            'var': nn.Parameter(torch.ones_like(self.W_logvar) * 0.1,
+        self.W_mean_prior = nn.Parameter(torch.zeros_like(self.W),
+                                         requires_grad=False)
+        self.W_var_prior = nn.Parameter(torch.ones_like(self.W_logvar) * 0.1,
                                 requires_grad=False)
-        }
 
-        self.bias_prior = {
-            'mean': nn.Parameter(torch.zeros_like(self.bias),
-                                 requires_grad=False),
-            'var': nn.Parameter(torch.ones_like(self.bias_logvar) * 0.1,
+        self.bias_mean_prior = nn.Parameter(torch.zeros_like(self.bias),
+                                            requires_grad=False)
+        self.bias_var_prior = nn.Parameter(
+            torch.ones_like(self.bias_logvar) * 0.1,
                                 requires_grad=False)
-        }
 
     def compute_kl(self):
         weights_kl = kl_gaussian(self.W, torch.exp(self.W_logvar),
-                                 self.weights_prior)
+                                 self.W_mean_prior, self.W_var_prior)
         bias_kl = kl_gaussian(self.bias, torch.exp(self.bias_logvar),
-                              self.bias_prior)
+                              self.bias_mean_prior, self.bias_var_prior)
         return weights_kl + bias_kl
 
     def set_flag(self, flag_name, value):
@@ -311,18 +309,16 @@ class DetermenisticLinear(LinearGaussian):
         self.bias_logvar.data.fill_(-10.0)
 
     def __construct_priors(self):
-        self.weights_prior = {
-            'mean': nn.Parameter(torch.zeros_like(self.W), requires_grad=False),
-            'var': nn.Parameter(torch.ones_like(self.W_logvar) * 0.1,
-                                requires_grad=False)
-        }
+        self.W_mean_prior = nn.Parameter(torch.zeros_like(self.W),
+                                         requires_grad=False)
+        self.W_var_prior = nn.Parameter(torch.ones_like(self.W_logvar) * 0.1,
+                                        requires_grad=False)
 
-        self.bias_prior = {
-            'mean': nn.Parameter(torch.zeros_like(self.bias),
-                                 requires_grad=False),
-            'var': nn.Parameter(torch.ones_like(self.bias_logvar) * 0.1,
-                                requires_grad=False)
-        }
+        self.bias_mean_prior = nn.Parameter(torch.zeros_like(self.bias),
+                                            requires_grad=False)
+        self.bias_var_prior = nn.Parameter(
+            torch.ones_like(self.bias_logvar) * 0.1,
+            requires_grad=False)
 
 
 class MeanFieldConv2d(nn.Module):
@@ -365,24 +361,22 @@ class MeanFieldConv2d(nn.Module):
         nn.init.uniform_(self.bias_logvar, a=-10, b=-7)
 
     def __construct_priors(self):
-        self.weights_prior = {
-            'mean': nn.Parameter(torch.zeros_like(self.W), requires_grad=False),
-            'var': nn.Parameter(torch.ones_like(self.W_logvar) * 0.1,
+        self.W_mean_prior = nn.Parameter(torch.zeros_like(self.W),
+                                         requires_grad=False)
+        self.W_var_prior = nn.Parameter(torch.ones_like(self.W_logvar) * 0.1,
                                 requires_grad=False)
-        }
 
-        self.bias_prior = {
-            'mean': nn.Parameter(torch.zeros_like(self.bias),
-                                 requires_grad=False),
-            'var': nn.Parameter(torch.ones_like(self.bias_logvar) * 0.1,
+        self.bias_mean_prior = nn.Parameter(torch.zeros_like(self.bias),
+                                            requires_grad=False)
+        self.bias_var_prior = nn.Parameter(
+            torch.ones_like(self.bias_logvar) * 0.1,
                                 requires_grad=False)
-        }
 
     def compute_kl(self):
         weights_kl = kl_gaussian(self.W, torch.exp(self.W_logvar),
-                                 self.weights_prior)
+                                 self.W_mean_prior, self.W_var_prior)
         bias_kl = kl_gaussian(self.bias, torch.exp(self.bias_logvar),
-                              self.bias_prior)
+                              self.bias_mean_prior, self.bias_var_prior)
         return weights_kl + bias_kl
 
     def set_flag(self, flag_name, value):

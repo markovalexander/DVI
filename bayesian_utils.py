@@ -111,7 +111,7 @@ def compute_relu_var(x_var, x_var_diag, mu):
     return x_var * delta(rho, mu1, mu2)
 
 
-def kl_gaussian(p_mean, p_var, prior):
+def kl_gaussian(p_mean, p_var, q_mean, q_var):
     """
     Computes KL (p || q) from p to q, assuming that both p and q have diagonal
     gaussian distributions
@@ -121,7 +121,6 @@ def kl_gaussian(p_mean, p_var, prior):
     :param prior:
     :return:
     """
-    q_mean, q_var = prior['mean'], prior['var']
     s_q_var = q_var + EPS
     entropy = 0.5 * (1 + math.log(2 * math.pi) + torch.log(p_var))
     cross_entropy = 0.5 * (math.log(2 * math.pi) + torch.log(s_q_var) + \

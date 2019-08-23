@@ -60,6 +60,8 @@ if __name__ == "__main__":
     else:
         model = LeNetVDO(args).to(args.device)
 
+    print(model)
+
     criterion = ClassificationLoss(model, args)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 

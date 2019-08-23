@@ -8,33 +8,55 @@ from layers import LinearGaussian, ReluGaussian, MeanFieldConv2d, \
 class LinearDVI(nn.Module):
     def __init__(self, args):
         super().__init__()
-        self.fc1 = LinearGaussian(28 * 28, 300, certain=True)
-        self.fc2 = ReluGaussian(300, 100) if not args.var_network else ReluVDO(
-            300, 100, use_det=not args.mcvi)
+        self.fc1 = LinearGaussian(784, 300, certain=True)
+        self.fc2 = ReluGaussian(300, 100)
         self.fc3 = ReluGaussian(100, 10)
 
         if args.mcvi:
-            self.mcvi()
+            self.set_flag('deterministic', False)
 
     def forward(self, x):
         x = self.fc1(x)
         x = self.fc2(x)
         return self.fc3(x)
 
-    def mean_forward(self, x):
-        x = self.fc1.mean_forward(x)
-        x = self.fc2.mean_forward(x)
-        return self.fc3.mean_forward(x)
+    def set_flag(self, flag_name, value):
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)
 
-    def mcvi(self):
-        self.fc1.mcvi()
-        self.fc2.mcvi()
-        self.fc3.mcvi()
 
-    def determenistic(self):
-        self.fc1.determenistic()
-        self.fc2.determenistic()
-        self.fc3.determenistic()
+class LinearVDO(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.fc1 = LinearGaussian(784, 300, certain=True)
+        self.fc2 = ReluVDO(300, 100)
+
+        if args.n_var_layers > 1:
+            self.fc3 = ReluVDO(100, 10)
+        else:
+            self.fc3 = ReluGaussian(100, 10)
+
+        if args.mcvi:
+            self.set_flag('deterministic', False)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.fc2(x)
+        return self.fc3(x)
+
+    def set_flag(self, flag_name, value):
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)
+
+    def print_alphas(self):
+        i = 1
+        for layer in self.children():
+            if hasattr(layer, 'log_alpha'):
+                print('{} var_layer log_alpha={:.5f}'.format(i,
+                                                             layer.log_alpha.item()))
+                i += 1
 
 
 class LeNetDVI(nn.Module):
@@ -43,14 +65,14 @@ class LeNetDVI(nn.Module):
 
         self.conv1 = MeanFieldConv2d(1, 20, 5, padding=2, certain=True)
         self.conv2 = MeanFieldConv2d(20, 50, 5)
-        self.fc1 = ReluGaussian(800, 500)
+        self.fc1 = ReluGaussian(1250, 500)
         self.fc2 = ReluGaussian(500, 100)
         self.fc3 = ReluGaussian(100, 10)
 
         self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
 
         if args.mcvi:
-            self.mcvi()
+            self.set_flag('deterministic', False)
 
     def forward(self, x):
         x = self.avg_pool(self.conv1(x))
@@ -59,9 +81,9 @@ class LeNetDVI(nn.Module):
         x_mean = x[0]
         x_var = x[1]
 
-        x_mean = x_mean.view(-1, 400)
+        x_mean = x_mean.view(-1, 1250)
         if x_var is not None:
-            x_var = x_var.view(-1, 400)
+            x_var = x_var.view(-1, 1250)
             x_var = torch.diag_embed(x_var)
 
         x = (x_mean, x_var)
@@ -70,21 +92,62 @@ class LeNetDVI(nn.Module):
         x = self.fc3(x)
         return x
 
-    def determenistic(self):
-        for module in self.children():
-            if hasattr(module, "determenistic"):
-                module.determenistic()
+    def set_flag(self, flag_name, value):
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)
 
-    def mcvi(self):
-        for module in self.children():
-            if hasattr(module, "mcvi"):
-                module.mcvi()
 
-    def mean_forward(self, x):
-        x = self.avg_pool(self.conv1.mean_forward(x))
-        x = self.avg_pool(self.conv2.mean_forward(x))
-        x = x.view(-1, 10)
-        x = self.fc1.mean_forward(x)
-        x = self.fc2.mean_forward(x)
-        x = self.fc3.mean_forward(x)
+class LeNetVDO(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+
+        self.conv1 = MeanFieldConv2d(1, 20, 5, padding=2, certain=True)
+        self.conv2 = MeanFieldConv2d(20, 50, 5)
+        self.fc1 = ReluVDO(1250, 500)
+
+        if args.n_var_layers > 1:
+            self.fc2 = ReluVDO(500, 100)
+        else:
+            self.fc2 = ReluGaussian(500, 100)
+
+        if args.n_var_layers > 2:
+            self.fc3 = ReluVDO(100, 10)
+        else:
+            self.fc3 = ReluGaussian(100, 10)
+
+        self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
+
+        if args.mcvi:
+            self.set_flag('deterministic', False)
+
+    def forward(self, x):
+        x = self.avg_pool(self.conv1(x))
+        x = self.avg_pool(self.conv2(x))
+
+        x_mean = x[0]
+        x_var = x[1]
+
+        x_mean = x_mean.view(-1, 1250)
+        if x_var is not None:
+            x_var = x_var.view(-1, 1250)
+            x_var = torch.diag_embed(x_var)
+
+        x = (x_mean, x_var)
+        x = self.fc1(x)
+        x = self.fc2(x)
+        x = self.fc3(x)
         return x
+
+    def set_flag(self, flag_name, value):
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)
+
+    def print_alphas(self):
+        i = 1
+        for layer in self.children():
+            if hasattr(layer, 'log_alpha'):
+                print('{} var_layer log_alpha={:.5f}'.format(i,
+                                                             layer.log_alpha.item()))
+                i += 1

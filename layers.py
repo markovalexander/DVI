@@ -161,7 +161,7 @@ class LinearGaussian(nn.Module):
             x_mean = x[0]
             x_var = x[1]
 
-        y_mean = self.bias
+        y_mean = 0 + self.bias
 
         W_var = torch.exp(self.W_logvar)
         bias_var = torch.exp(self.bias_logvar)
@@ -247,10 +247,7 @@ class LinearVDO(LinearGaussian):
         return self.__class__.__name__ + '(' \
                + 'in_features=' + str(self.in_features) \
                + ', out_features=' + str(self.out_features) \
-               + ', alpha_shape=' + str(self.alpha_shape) \
-               + ', prior=' + self.prior \
-               + ', bias=' + str(self.bias is not None) + ')' ', bias=' + str(
-            self.bias is not None) + ')'
+               + ', alpha_shape=' + str(self.alpha_shape) + ')'
 
 
 class ReluVDO(LinearVDO):
@@ -326,7 +323,6 @@ class DetermenisticLinear(LinearGaussian):
             'var': nn.Parameter(torch.ones_like(self.bias_logvar) * 0.1,
                                 requires_grad=False)
         }
-
 
 
 class MeanFieldConv2d(nn.Module):
@@ -407,7 +403,7 @@ class MeanFieldConv2d(nn.Module):
             return self.__mcvi_forward(x)
 
     def __zero_mean_forward(self, x):
-        if self.certain or not self.use_det:
+        if self.certain or not self.deterministic:
             x_mean = x if not isinstance(x, tuple) else x[0]
             x_var = x_mean * x_mean
         else:
@@ -423,9 +419,12 @@ class MeanFieldConv2d(nn.Module):
         z_var = F.conv2d(x_var, W_var, bias_var, self.stride,
                          self.padding)
 
-        dst = Independent(Normal(z_mean, z_var), 1)
-        sample = dst.rsample()
-        return sample, None
+        if self.deterministic:
+            return z_mean, z_var
+        else:
+            dst = Independent(Normal(z_mean, z_var), 1)
+            sample = dst.rsample()
+            return sample, None
 
     def __mean_forward(self, x):
         if not isinstance(x, tuple):
@@ -460,7 +459,7 @@ class MeanFieldConv2d(nn.Module):
         return z_mean, z_var
 
     def __mcvi_forward(self, x):
-        if self.certain or not self.use_det:
+        if self.certain or not self.deterministic:
             x_mean = x if not isinstance(x, tuple) else x[0]
             x_var = x_mean * x_mean
         else:
@@ -481,8 +480,11 @@ class MeanFieldConv2d(nn.Module):
         return sample, None
 
     def __apply_activation(self, x):
-        if self.activation == 'relu':
+        if self.activation == 'relu' and not self.certain:
             x_mean, x_var = x
+            if x_var is None:
+                x_var = x_mean * x_mean
+
             sqrt_x_var = torch.sqrt(x_var + EPS)
             mu = x_mean / sqrt_x_var
             z_mean = sqrt_x_var * softrelu(mu)

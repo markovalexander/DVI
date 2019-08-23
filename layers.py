@@ -187,10 +187,8 @@ class LinearGaussian(nn.Module):
                + ', out_features=' + str(self.out_features) + ')'
 
 
-# TODO: разобраться почему так долго стало работать
 class ReluGaussian(LinearGaussian):
     def _apply_activation(self, x):
-        print('applying relu activation...')
         x_mean = x[0]
         x_var = x[1]
 
@@ -204,7 +202,7 @@ class ReluGaussian(LinearGaussian):
 
             z_mean = sqrt_x_var_diag * softrelu(mu)
             z_var = compute_relu_var(x_var, x_var_diag, mu)
-        print('finished')
+
         return z_mean, z_var
 
 
@@ -231,7 +229,6 @@ class LinearVDO(LinearGaussian):
 
 class ReluVDO(LinearVDO):
     def _apply_activation(self, x):
-        print('applying linear activation...')
         x_mean = x[0]
         x_var = x[1]
 
@@ -246,7 +243,6 @@ class ReluVDO(LinearVDO):
             z_mean = sqrt_x_var_diag * softrelu(mu)
             z_var = compute_relu_var(x_var, x_var_diag, mu)
 
-        print('finish!')
         return z_mean, z_var
 
 
@@ -424,7 +420,6 @@ class MeanFieldConv2d(nn.Module):
         return sample, None
 
     def _apply_activation(self, x):
-        print('applying field activation...')
         if self.activation == 'relu' and not self.certain:
             x_mean, x_var = x
             if x_var is None:
@@ -435,13 +430,9 @@ class MeanFieldConv2d(nn.Module):
             z_mean = sqrt_x_var * softrelu(mu)
             z_var = x_var * (mu * standard_gaussian(mu) + (
                     1 + mu ** 2) * gaussian_cdf(mu))
-        elif not self.certain:
-            z_mean, z_var = x
+            return z_mean, z_var
         else:
-            print('finish')
             return x
-        print('finish!')
-        return z_mean, z_var
 
     def __repr__(self):
         return self.__class__.__name__ + '(' \

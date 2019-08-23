@@ -198,8 +198,8 @@ if __name__ == "__main__":
 
             model.zero_mean(False)
             zero_mean_acc = np.mean(zero_mean_acc)
+            model.print_alphas()
 
-        model.print_alphas()
         report(args.checkpoint_dir, epoch, elbo, cat_mean, kl, accuracy,
                test_acc_prob, zero_mean_acc)
 

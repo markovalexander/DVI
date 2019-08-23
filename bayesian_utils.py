@@ -49,8 +49,7 @@ def relu_q(rho, mu1, mu2):
 
     """
     rho_hat_plus_one = torch.sqrt(1 - rho * rho) + 1
-    g_r = torch.asin(
-        rho) - rho / rho_hat_plus_one  # why minus? why no brackets?
+    g_r = torch.asin(rho) - rho / rho_hat_plus_one  # why minus? why no brackets
 
     rho_s = torch.abs(rho) + EPS
     g_r_s = torch.abs(g_r) + EPS

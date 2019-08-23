@@ -301,14 +301,7 @@ class HeavisideGaussian(nn.Module):
         if not self.use_dvi:
             raise NotImplementedError(
                 "Heaviside activation function is not supported in MCVI mode")
-        #
-        # if not self.use_dvi:
-        #     x_mean = x[0]
-        #     x_var = x_mean * x_mean
-        #
-        #     z_mean = x_mean
-        #     z_mean[x_mean > 0] = 1
-        #     z_mean[]
+
         x_mean = x[0]
         x_var = x[1]
 
@@ -392,7 +385,6 @@ class MeanFieldConv2d(nn.Module):
         nn.init.uniform_(self.bias_log_var, a=-10, b=-7)
 
     def compute_kl(self):
-        # device = self.weights_mean.device
         weights_kl = kl_gaussian(self.weights_mean,
                                  torch.exp(self.weights_log_var),
                                  self._weight_prior_mean,

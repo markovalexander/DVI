@@ -8,7 +8,7 @@ from torch import nn
 
 from bayesian_utils import classification_posterior, sample_softmax
 from losses import ClassificationLoss
-from models import LinearDVI, LeNetDVI, LinearVDO, LeNetVDO
+from models import LinearDVI, LeNetDVI, LinearVDO, LeNetVDO, LeNetVariance
 from utils import load_mnist, save_checkpoint, report, prepare_directory, \
     mc_prediction, one_hot_encoding
 
@@ -38,6 +38,7 @@ parser.add_argument('--use_samples', action='store_true',
 parser.add_argument('--swap_modes', action='store_true',
                     help="use different modes for train and test")
 parser.add_argument('--var_network', action='store_true')
+parser.add_argument('--vdo', action='store_true')
 parser.add_argument('--n_var_layers', type=int, default=1)
 parser.add_argument('--checkpoint_dir', type=str, default='')
 
@@ -51,14 +52,18 @@ if __name__ == "__main__":
 
     prepare_directory(args)
 
-    if args.arch.strip().lower() == "fc" and not args.var_network:
-        model = LinearDVI(args).to(args.device)
-    elif args.arch.strip().lower() == "fc" and args.var_network:
-        model = LinearVDO(args).to(args.device)
-    elif args.arch.strip().lower() == "lenet" and not args.var_network:
-        model = LeNetDVI(args).to(args.device)
-    else:
-        model = LeNetVDO(args).to(args.device)
+    if args.arch.strip().lower() == "fc":
+        if args.vdo:
+            model = LinearVDO(args).to(args.device)
+        else:
+            model = LinearDVI(args).to(args.device)
+    elif args.arch.strip().lower() == "lenet":
+        if args.var_network:
+            model = LeNetVariance(args).to(args.device)
+        elif args.vdo:
+            model = LeNetVDO(args).to(args.device)
+        else:
+            model = LeNetDVI(args).to(args.device)
 
     print(model)
 

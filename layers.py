@@ -267,6 +267,34 @@ class DetermenisticReluLinear(ReluGaussian):
         return 0
 
 
+class VarianceLinear(LinearGaussian):
+    def __init__(self, in_features, out_features,
+                 certain=False, deterministic=True):
+        super().__init__(in_features, out_features, certain, deterministic)
+        self.W.data.fill_(0)
+        self.W.requires_grad = False
+
+    def _zero_mean_forward(self, x):
+        if self.deterministic:
+            return self._det_forward(x)
+        else:
+            return self._mcvi_forward(x)
+
+
+class VarianceReluGaussian(ReluGaussian):
+    def __init__(self, in_features, out_features,
+                 certain=False, deterministic=True):
+        super().__init__(in_features, out_features, certain, deterministic)
+        self.W.data.fill_(0)
+        self.W.requires_grad = False
+
+    def _zero_mean_forward(self, x):
+        if self.deterministic:
+            return self._det_forward(x)
+        else:
+            return self._mcvi_forward(x)
+
+
 class MeanFieldConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1,
                  activation='relu', padding=0, certain=False,

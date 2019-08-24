@@ -68,11 +68,11 @@ class LeNetDVI(nn.Module):
     def __init__(self, args):
         super().__init__()
 
-        self.conv1 = MeanFieldConv2d(1, 20, 5, padding=2, certain=True)
-        self.conv2 = MeanFieldConv2d(20, 50, 5)
-        self.fc1 = ReluGaussian(1250, 500)
-        self.fc2 = ReluGaussian(500, 100)
-        self.fc3 = ReluGaussian(100, 10)
+        self.conv1 = MeanFieldConv2d(1, 6, 5, padding=2, certain=True)
+        self.conv2 = MeanFieldConv2d(6, 16, 5)
+        self.fc1 = ReluGaussian(16 * 5 * 5, 120)
+        self.fc2 = ReluGaussian(120, 84)
+        self.fc3 = ReluGaussian(84, 10)
 
         self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
 
@@ -86,9 +86,9 @@ class LeNetDVI(nn.Module):
         x_mean = x[0]
         x_var = x[1]
 
-        x_mean = x_mean.view(-1, 1250)
+        x_mean = x_mean.view(-1, 400)
         if x_var is not None:
-            x_var = x_var.view(-1, 1250)
+            x_var = x_var.view(-1, 400)
             x_var = torch.diag_embed(x_var)
 
         x = (x_mean, x_var)
@@ -107,19 +107,19 @@ class LeNetVDO(nn.Module):
     def __init__(self, args):
         super().__init__()
 
-        self.conv1 = MeanFieldConv2d(1, 20, 5, padding=2, certain=True)
-        self.conv2 = MeanFieldConv2d(20, 50, 5)
-        self.fc1 = ReluVDO(1250, 500)
+        self.conv1 = MeanFieldConv2d(1, 6, 5, padding=2, certain=True)
+        self.conv2 = MeanFieldConv2d(6, 16, 5)
+        self.fc1 = ReluVDO(16 * 5 * 5, 120)
 
         if args.n_var_layers > 1:
-            self.fc2 = ReluVDO(500, 100)
+            self.fc2 = ReluVDO(120, 84)
         else:
-            self.fc2 = DetermenisticReluLinear(500, 100)
+            self.fc2 = DetermenisticReluLinear(120, 84)
 
         if args.n_var_layers > 2:
-            self.fc3 = ReluVDO(100, 10)
+            self.fc3 = ReluVDO(84, 10)
         else:
-            self.fc3 = DetermenisticReluLinear(100, 10)
+            self.fc3 = DetermenisticReluLinear(84, 10)
 
         self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
 

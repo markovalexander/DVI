@@ -138,9 +138,9 @@ class LeNetVDO(nn.Module):
         x_mean = x[0]
         x_var = x[1]
 
-        x_mean = x_mean.view(-1, 1250)
+        x_mean = x_mean.view(-1, 400)
         if x_var is not None:
-            x_var = x_var.view(-1, 1250)
+            x_var = x_var.view(-1, 400)
             x_var = torch.diag_embed(x_var)
 
         x = (x_mean, x_var)

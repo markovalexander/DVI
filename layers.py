@@ -206,15 +206,136 @@ class ReluGaussian(LinearGaussian):
         return z_mean, z_var
 
 
-class LinearVDO(LinearGaussian):
+class LinearVDO(nn.Module):
     def __init__(self, in_features, out_features,
                  alpha_shape=(1, 1), certain=False, deterministic=True):
-        super(LinearVDO, self).__init__(in_features, out_features, certain,
-                                        deterministic)
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+
+        self.W = nn.Parameter(torch.Tensor(in_features, out_features))
+        self.bias = nn.Parameter(torch.Tensor(out_features))
         self.alpha_shape = alpha_shape
+
         self.log_alpha = nn.Parameter(torch.Tensor(*alpha_shape))
-        self.log_alpha.data.fill_(-5.0)
+        self._initialize_weights()
+
+        self.certain = certain
+        self.deterministic = deterministic
+        self.mean_forward = False
         self.zero_mean = False
+
+    def _initialize_weights(self):
+        nn.init.xavier_normal_(self.W)
+        self.log_alpha.data.fill_(-5.0)
+
+    def set_flag(self, flag_name, value):
+        setattr(self, flag_name, value)
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)
+
+    def forward(self, x):
+        """
+        Compute expectation and variance after linear transform
+        y = xA^T + b
+
+        :param x: input, size [batch, in_features]
+        :return: tuple (y_mean, y_var) for deterministic mode:,  shapes:
+                 y_mean: [batch, out_features]
+                 y_var:  [batch, out_features, out_features]
+
+                 tuple (sample, None) for MCVI mode,
+                 sample : [batch, out_features] - local reparametrization of output
+        """
+        x = self._apply_activation(x)
+        if self.zero_mean:
+            return self._zero_mean_forward(x)
+        elif self.mean_forward:
+            return self._mean_forward(x)
+        elif self.deterministic:
+            return self._det_forward(x)
+        else:
+            return self._mcvi_forward(x)
+
+    def _mcvi_forward(self, x):
+        W_var = torch.exp(self.log_alpha) * self.W * self.W
+
+        if self.certain:
+            x_mean = x
+            x_var = None
+        else:
+            x_mean = x[0]
+            x_var = x[1]
+
+        y_mean = F.linear(x_mean, self.W.t()) + self.bias
+
+        if self.certain or not self.deterministic:
+            xx = x_mean * x_mean
+            y_var = torch.diag_embed(F.linear(xx, W_var.t()))
+        else:
+            y_var = compute_linear_var(x_mean, x_var, self.W, W_var)
+
+        dst = MultivariateNormal(loc=y_mean, covariance_matrix=y_var)
+        sample = dst.rsample()
+        return sample, None
+
+    def _det_forward(self, x):
+        W_var = torch.exp(self.log_alpha) * self.W * self.W
+
+        if self.certain:
+            x_mean = x
+            x_var = None
+        else:
+            x_mean = x[0]
+            x_var = x[1]
+
+        y_mean = F.linear(x_mean, self.W.t()) + self.bias
+
+        if self.certain:
+            xx = x_mean * x_mean
+            y_var = torch.diag_embed(F.linear(xx, W_var.t()))
+        else:
+            y_var = compute_linear_var(x_mean, x_var, self.W, W_var)
+
+        return y_mean, y_var
+
+    def _mean_forward(self, x):
+        if not isinstance(x, tuple):
+            x_mean = x
+        else:
+            x_mean = x[0]
+
+        y_mean = F.linear(x_mean, self.W.t()) + self.bias
+        return y_mean, None
+
+    def _zero_mean_forward(self, x):
+        if not isinstance(x, tuple):
+            x_mean = x
+            x_var = None
+        else:
+            x_mean = x[0]
+            x_var = x[1]
+
+        y_mean = F.linear(x_mean, torch.zeros_like(self.W).t()) + self.bias
+
+        W_var = torch.exp(self.log_alpha) * self.W * self.W
+        if x_var is None:
+            xx = x_mean * x_mean
+            y_var = torch.diag_embed(F.linear(xx, W_var.t()))
+        else:
+            y_var = compute_linear_var(x_mean, x_var, torch.zeros_like(self.W),
+                                       W_var)
+
+        if self.deterministic:
+            return y_mean, y_var
+        else:
+            dst = MultivariateNormal(loc=y_mean, covariance_matrix=y_var)
+            sample = dst.rsample()
+            return sample, None
+
+    def _apply_activation(self, x):
+        return x
 
     def compute_kl(self):
         return self.W.nelement() * kl_loguni(
@@ -224,7 +345,8 @@ class LinearVDO(LinearGaussian):
         return self.__class__.__name__ + '(' \
                + 'in_features=' + str(self.in_features) \
                + ', out_features=' + str(self.out_features) \
-               + ', alpha_shape=' + str(self.alpha_shape) + ')'
+               + ', alpha_shape=' + str(self.alpha_shape) \
+               + ')'
 
 
 class ReluVDO(LinearVDO):

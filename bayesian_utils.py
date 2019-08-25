@@ -65,8 +65,8 @@ def delta(rho, mu1, mu2):
     return gaussian_cdf(mu1) * gaussian_cdf(mu2) + relu_q(rho, mu1, mu2)
 
 
-def compute_linear_var(x_mean, x_var, weights_mean, weights_var, bias_mean,
-                       bias_var):
+def compute_linear_var(x_mean, x_var, weights_mean, weights_var,
+                       bias_mean=None, bias_var=None):
     x_var_diag = matrix_diag_part(x_var)
     xx_mean = x_var_diag + x_mean * x_mean
 
@@ -91,7 +91,7 @@ def compute_linear_var(x_mean, x_var, weights_mean, weights_var, bias_mean,
     _, n, _ = term2.size()
     idx = torch.arange(0, n)
 
-    term3_diag = bias_var
+    term3_diag = bias_var if bias_var is not None else 0
     result_diag = term1_diag + term2_diag + term3_diag
 
     result = term2

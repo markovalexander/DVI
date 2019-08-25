@@ -174,7 +174,7 @@ if __name__ == "__main__":
             test_acc_prob = np.mean(test_acc_prob)
 
         zero_mean_acc = None
-        if args.var_network:
+        if isinstance(model, LeNetVDO) or isinstance(model, LinearVDO):
             model.zero_mean()
             zero_mean_acc = []
             with torch.no_grad():

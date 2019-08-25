@@ -256,6 +256,12 @@ class LinearVDO(nn.Module):
         if self.bias is not None:
             self.bias.data.zero_()
 
+    def set_flag(self, flag_name, value):
+        setattr(self, flag_name, value)
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)
+
     def forward(self, x):
         if self.deterministic:
             return self._det_forward(x)

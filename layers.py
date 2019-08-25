@@ -232,7 +232,7 @@ class DetermenisticReluLinear(ReluGaussian):
 class LinearVDO(nn.Module):
 
     def __init__(self, in_features, out_features, prior='loguni',
-                 alpha_shape=(1, 1), bias=True, deterministic=False):
+                 alpha_shape=(1, 1), bias=True, deterministic=True):
         super(LinearVDO, self).__init__()
         self.in_features = in_features
         self.out_features = out_features

@@ -26,7 +26,7 @@ class LinearDVI(nn.Module):
                 m.set_flag(flag_name, value)
 
 
-class LinearVDO(nn.Module):
+class LinearVariance(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.fc1 = LinearGaussian(784, 300, certain=True)
@@ -34,6 +34,31 @@ class LinearVDO(nn.Module):
 
         if args.n_var_layers > 1:
             self.fc3 = VarianceReluGaussian(100, 10)
+        else:
+            self.fc3 = ReluVDO(100, 10)
+
+        if args.mcvi:
+            self.set_flag('deterministic', False)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.fc2(x)
+        return self.fc3(x)
+
+    def set_flag(self, flag_name, value):
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)
+
+
+class LinearVDO(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.fc1 = LinearGaussian(784, 300, certain=True)
+        self.fc2 = ReluVDO(300, 100, deterministic=not args.mcvi)
+
+        if args.n_var_layers > 1:
+            self.fc3 = ReluVDO(100, 10, deterministic=not args.mcvi)
         else:
             self.fc3 = ReluVDO(100, 10)
 
@@ -109,15 +134,15 @@ class LeNetVDO(nn.Module):
 
         self.conv1 = MeanFieldConv2d(1, 6, 5, padding=2, certain=True)
         self.conv2 = MeanFieldConv2d(6, 16, 5)
-        self.fc1 = ReluVDO(16 * 5 * 5, 120)
+        self.fc1 = ReluVDO(16 * 5 * 5, 120, deterministic=not args.mcvi)
 
         if args.n_var_layers > 1:
-            self.fc2 = ReluVDO(120, 84)
+            self.fc2 = ReluVDO(120, 84, deterministic=not args.mcvi)
         else:
             self.fc2 = DetermenisticReluLinear(120, 84)
 
         if args.n_var_layers > 2:
-            self.fc3 = ReluVDO(84, 10)
+            self.fc3 = ReluVDO(84, 10, deterministic=not args.mcvi)
         else:
             self.fc3 = DetermenisticReluLinear(84, 10)
 

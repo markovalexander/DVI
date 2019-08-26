@@ -272,7 +272,7 @@ class LinearVDO(nn.Module):
         x_mean = x[0]
         x_var = x[1]
 
-        sigma2 = torch.exp(self.log_alpha) * self.W.t() * self.W.t()
+        sigma2 = torch.exp(self.log_alpha) * self.W * self.W
         if self.zero_mean:
             y_mean = 0.0
         else:
@@ -280,7 +280,7 @@ class LinearVDO(nn.Module):
         if self.bias is not None:
             y_mean = y_mean + self.bias
 
-        y_var = self.compute_var(x_mean, x_var, self.W.t(), sigma2)
+        y_var = self.compute_var(x_mean, x_var, self.W.t(), sigma2.t())
         return y_mean, y_var
 
     def compute_var(self, x_mean, x_var, weights_mean, weights_var):

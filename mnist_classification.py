@@ -39,7 +39,10 @@ parser.add_argument('--swap_modes', action='store_true',
                     help="use different modes for train and test")
 parser.add_argument('--var_network', action='store_true')
 parser.add_argument('--vdo', action='store_true')
-parser.add_argument('--n_var_layers', type=int, default=1)
+parser.add_argument('--n_layers', type=int, default=1,
+                    help='number of variance or VDO layers for \
+                    this architectures')
+parser.add_argument('--nonlinearity', type=str, default='relu')
 parser.add_argument('--checkpoint_dir', type=str, default='')
 
 if __name__ == "__main__":

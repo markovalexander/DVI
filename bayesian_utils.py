@@ -99,6 +99,17 @@ def compute_linear_var(x_mean, x_var, weights_mean, weights_var,
     return result
 
 
+def compute_heaviside_var(x_var, x_var_diag, mu):
+    mu1 = torch.unsqueeze(mu, 2)
+    mu2 = mu1.permute(0, 2, 1)
+
+    s11s22 = torch.unsqueeze(x_var_diag, dim=2) * torch.unsqueeze(
+        x_var_diag, dim=1)
+    rho = x_var / torch.sqrt(s11s22)
+    rho = torch.clamp(rho, -1 / (1 + 1e-6), 1 / (1 + 1e-6))
+    return heaviside_q(rho, mu1, mu2)
+
+
 def compute_relu_var(x_var, x_var_diag, mu):
     mu1 = torch.unsqueeze(mu, 2)
     mu2 = mu1.permute(0, 2, 1)

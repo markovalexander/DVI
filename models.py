@@ -1,16 +1,18 @@
-import torch
-from torch import nn
-
-from layers import LinearGaussian, ReluGaussian, MeanFieldConv2d, \
-    AveragePoolGaussian, ReluVDO, DetermenisticReluLinear, VarianceReluGaussian
+from layers import *
 
 
 class LinearDVI(nn.Module):
     def __init__(self, args):
         super().__init__()
+
+        if args.nonlinearity == 'relu':
+            layer_factory = ReluGaussian
+        else:
+            layer_factory = HeavisideGaussian
+
         self.fc1 = LinearGaussian(784, 300, certain=True)
-        self.fc2 = ReluGaussian(300, 100)
-        self.fc3 = ReluGaussian(100, 10)
+        self.fc2 = layer_factory(300, 100)
+        self.fc3 = layer_factory(100, 10)
 
         if args.mcvi:
             self.set_flag('deterministic', False)
@@ -30,12 +32,18 @@ class LinearVariance(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.fc1 = LinearGaussian(784, 300, certain=True)
-        self.fc2 = VarianceReluGaussian(300, 100)
 
-        if args.n_var_layers > 1:
-            self.fc3 = VarianceReluGaussian(100, 10)
+        if args.nonlinearity == 'relu':
+            layer_factory = VarianceReluGaussian
         else:
-            self.fc3 = ReluVDO(100, 10)
+            layer_factory = VarianceHeavisideGaussian
+
+        self.fc2 = layer_factory(300, 100)
+
+        if args.n_layers > 1:
+            self.fc3 = layer_factory(100, 10)
+        else:
+            self.fc3 = DetermenisticReluGaussian(100, 10)
 
         if args.mcvi:
             self.set_flag('deterministic', False)
@@ -55,12 +63,18 @@ class LinearVDO(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.fc1 = LinearGaussian(784, 300, certain=True)
-        self.fc2 = ReluVDO(300, 100, deterministic=not args.mcvi)
 
-        if args.n_var_layers > 1:
-            self.fc3 = ReluVDO(100, 10, deterministic=not args.mcvi)
+        if args.nonlinearity == 'relu':
+            layer_factory = ReluVDO
         else:
-            self.fc3 = ReluVDO(100, 10)
+            layer_factory = HeavisideVDO
+
+        self.fc2 = layer_factory(300, 100, deterministic=not args.mcvi)
+
+        if args.n_layers > 1:
+            self.fc3 = layer_factory(100, 10, deterministic=not args.mcvi)
+        else:
+            self.fc3 = DetermenisticReluGaussian(100, 10)
 
         if args.mcvi:
             self.set_flag('deterministic', False)
@@ -95,9 +109,15 @@ class LeNetDVI(nn.Module):
 
         self.conv1 = MeanFieldConv2d(1, 6, 5, padding=2, certain=True)
         self.conv2 = MeanFieldConv2d(6, 16, 5)
-        self.fc1 = ReluGaussian(16 * 5 * 5, 120)
-        self.fc2 = ReluGaussian(120, 84)
-        self.fc3 = ReluGaussian(84, 10)
+
+        if args.nonlinearity == 'relu':
+            layer_factory = ReluGaussian
+        else:
+            layer_factory = HeavisideGaussian
+
+        self.fc1 = layer_factory(16 * 5 * 5, 120)
+        self.fc2 = layer_factory(120, 84)
+        self.fc3 = layer_factory(84, 10)
 
         self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
 
@@ -134,17 +154,23 @@ class LeNetVDO(nn.Module):
 
         self.conv1 = MeanFieldConv2d(1, 6, 5, padding=2, certain=True)
         self.conv2 = MeanFieldConv2d(6, 16, 5)
-        self.fc1 = ReluVDO(16 * 5 * 5, 120, deterministic=not args.mcvi)
 
-        if args.n_var_layers > 1:
-            self.fc2 = ReluVDO(120, 84, deterministic=not args.mcvi)
+        if args.nonlinearity == 'relu':
+            layer_factory = ReluVDO
         else:
-            self.fc2 = DetermenisticReluLinear(120, 84)
+            layer_factory = HeavisideVDO
 
-        if args.n_var_layers > 2:
-            self.fc3 = ReluVDO(84, 10, deterministic=not args.mcvi)
+        self.fc1 = layer_factory(16 * 5 * 5, 120, deterministic=not args.mcvi)
+
+        if args.n_layers > 1:
+            self.fc2 = layer_factory(120, 84, deterministic=not args.mcvi)
         else:
-            self.fc3 = DetermenisticReluLinear(84, 10)
+            self.fc2 = DetermenisticReluGaussian(120, 84)
+
+        if args.n_layers > 2:
+            self.fc3 = layer_factory(84, 10, deterministic=not args.mcvi)
+        else:
+            self.fc3 = DetermenisticReluGaussian(84, 10)
 
         self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
 
@@ -194,17 +220,23 @@ class LeNetVariance(nn.Module):
 
         self.conv1 = MeanFieldConv2d(1, 6, 5, padding=2, certain=True)
         self.conv2 = MeanFieldConv2d(6, 16, 5)
-        self.fc1 = VarianceReluGaussian(16 * 5 * 5, 120)
 
-        if args.n_var_layers > 1:
-            self.fc2 = VarianceReluGaussian(120, 84)
+        if args.nonlinearity == 'relu':
+            layer_factory = VarianceReluGaussian
         else:
-            self.fc2 = DetermenisticReluLinear(120, 84)
+            layer_factory = VarianceHeavisideGaussian
 
-        if args.n_var_layers > 2:
-            self.fc3 = VarianceReluGaussian(84, 10)
+        self.fc1 = layer_factory(16 * 5 * 5, 120)
+
+        if args.n_layers > 1:
+            self.fc2 = layer_factory(120, 84)
         else:
-            self.fc3 = DetermenisticReluLinear(84, 10)
+            self.fc2 = DetermenisticReluGaussian(120, 84)
+
+        if args.n_layers > 2:
+            self.fc3 = layer_factory(84, 10)
+        else:
+            self.fc3 = DetermenisticReluGaussian(84, 10)
 
         self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
 

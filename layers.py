@@ -6,7 +6,8 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal, Independent, Normal
 
 from bayesian_utils import kl_gaussian, softrelu, matrix_diag_part, kl_loguni, \
-    compute_linear_var, compute_relu_var, standard_gaussian, gaussian_cdf
+    compute_linear_var, compute_relu_var, standard_gaussian, gaussian_cdf, \
+    compute_heaviside_var
 
 EPS = 1e-6
 
@@ -54,13 +55,13 @@ class LinearGaussian(nn.Module):
         self.W_mean_prior = nn.Parameter(torch.zeros_like(self.W),
                                          requires_grad=False)
         self.W_var_prior = nn.Parameter(torch.ones_like(self.W_logvar) * 0.1,
-                                requires_grad=False)
+                                        requires_grad=False)
 
         self.bias_mean_prior = nn.Parameter(torch.zeros_like(self.bias),
                                             requires_grad=False)
         self.bias_var_prior = nn.Parameter(
             torch.ones_like(self.bias_logvar) * 0.1,
-                                requires_grad=False)
+            requires_grad=False)
 
     def compute_kl(self):
         weights_kl = kl_gaussian(self.W, torch.exp(self.W_logvar),
@@ -208,7 +209,26 @@ class ReluGaussian(LinearGaussian):
         return z_mean, z_var
 
 
-class DetermenisticReluLinear(ReluGaussian):
+class HeavisideGaussian(LinearGaussian):
+    def _apply_activation(self, x):
+        x_mean = x[0]
+        x_var = x[1]
+
+        if x_var is None:
+            x_var = x_mean * x_mean
+
+        x_var_diag = matrix_diag_part(x_var)
+
+        sqrt_x_var_diag = torch.sqrt(x_var_diag)
+        mu = x_mean / (sqrt_x_var_diag + EPS)
+
+        z_mean = gaussian_cdf(mu)
+        z_var = compute_heaviside_var(x_var, x_var_diag, mu)
+
+        return z_mean, z_var
+
+
+class DetermenisticReluGaussian(ReluGaussian):
     def __init__(self, in_features, out_features, certain=False,
                  deterministic=True):
         """
@@ -373,7 +393,30 @@ class ReluVDO(LinearVDO):
         return z_mean, z_var
 
 
-class VarianceLinear(LinearGaussian):
+class HeavisideVDO(LinearVDO):
+    def forward(self, x):
+        x = self._apply_activation(x)
+        return super().forward(x)
+
+    def _apply_activation(self, x):
+        x_mean = x[0]
+        x_var = x[1]
+
+        if x_var is None:
+            x_var = x_mean * x_mean
+
+        x_var_diag = matrix_diag_part(x_var)
+
+        sqrt_x_var_diag = torch.sqrt(x_var_diag)
+        mu = x_mean / (sqrt_x_var_diag + EPS)
+
+        z_mean = gaussian_cdf(mu)
+        z_var = self.compute_var(x_var, x_var_diag, mu)
+
+        return z_mean, z_var
+
+
+class VarianceGaussian(LinearGaussian):
     def __init__(self, in_features, out_features,
                  certain=False, deterministic=True):
         super().__init__(in_features, out_features, certain, deterministic)
@@ -388,6 +431,20 @@ class VarianceLinear(LinearGaussian):
 
 
 class VarianceReluGaussian(ReluGaussian):
+    def __init__(self, in_features, out_features,
+                 certain=False, deterministic=True):
+        super().__init__(in_features, out_features, certain, deterministic)
+        self.W.data.fill_(0)
+        self.W.requires_grad = False
+
+    def _zero_mean_forward(self, x):
+        if self.deterministic:
+            return self._det_forward(x)
+        else:
+            return self._mcvi_forward(x)
+
+
+class VarianceHeavisideGaussian(HeavisideGaussian):
     def __init__(self, in_features, out_features,
                  certain=False, deterministic=True):
         super().__init__(in_features, out_features, certain, deterministic)
@@ -444,13 +501,13 @@ class MeanFieldConv2d(nn.Module):
         self.W_mean_prior = nn.Parameter(torch.zeros_like(self.W),
                                          requires_grad=False)
         self.W_var_prior = nn.Parameter(torch.ones_like(self.W_logvar) * 0.1,
-                                requires_grad=False)
+                                        requires_grad=False)
 
         self.bias_mean_prior = nn.Parameter(torch.zeros_like(self.bias),
                                             requires_grad=False)
         self.bias_var_prior = nn.Parameter(
             torch.ones_like(self.bias_logvar) * 0.1,
-                                requires_grad=False)
+            requires_grad=False)
 
     def compute_kl(self):
         weights_kl = kl_gaussian(self.W, torch.exp(self.W_logvar),

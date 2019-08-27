@@ -71,7 +71,8 @@ if __name__ == "__main__":
     print(model)
 
     criterion = ClassificationLoss(model, args)
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam([p for p in model.parameters()
+                                  if p.requires_grad], lr=args.lr)
 
     if len(args.milestones) > 0:
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,

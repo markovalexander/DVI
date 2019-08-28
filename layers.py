@@ -337,6 +337,11 @@ class LinearVDO(nn.Module):
         y_var = compute_linear_var(x_mean, x_var, self.W.t(), sigma2.t())
         return y_mean, y_var
 
+    def set_flag(self, flag_name, value):
+        setattr(self, flag_name, value)
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)
 
 
 class ReluVDO(LinearVDO):

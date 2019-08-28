@@ -267,6 +267,7 @@ class LinearVDO(nn.Module):
         self.zero_mean = False
         self.permute_sigma = False
         self.prior = prior
+        self.kl_fun = kl_loguni
         self.deterministic = deterministic
 
     def reset_parameters(self):
@@ -276,66 +277,13 @@ class LinearVDO(nn.Module):
         if self.bias is not None:
             self.bias.data.zero_()
 
-    def set_flag(self, flag_name, value):
-        setattr(self, flag_name, value)
-        for m in self.children():
-            if hasattr(m, 'set_flag'):
-                m.set_flag(flag_name, value)
-
     def forward(self, x):
         if self.deterministic:
             return self._det_forward(x)
         else:
-            return self._mcvi_forward(x)
+            return self._mc_forward(x)
 
-    def _det_forward(self, x):
-        x_mean = x[0]
-        x_var = x[1]
-
-        sigma2 = torch.exp(self.log_alpha) * self.W * self.W
-        if self.zero_mean:
-            y_mean = 0.0
-        else:
-            y_mean = F.linear(x_mean, self.W)
-        if self.bias is not None:
-            y_mean = y_mean + self.bias
-
-        y_var = self.compute_var(x_mean, x_var, self.W.t(), sigma2.t())
-        return y_mean, y_var
-
-    def compute_var(self, x_mean, x_var, weights_mean, weights_var):
-        x_var_diag = matrix_diag_part(x_var)
-        xx_mean = x_var_diag + x_mean * x_mean
-
-        term1_diag = torch.matmul(xx_mean, weights_var)
-
-        flat_xCov = torch.reshape(x_var, (-1, weights_mean.size(0)))  # [b*x, x]
-        xCov_A = torch.matmul(flat_xCov, weights_mean)  # [b * x, y]
-        xCov_A = torch.reshape(xCov_A, (
-            -1, weights_mean.size(0), weights_mean.size(1)))  # [b, x, y]
-        xCov_A = torch.transpose(xCov_A, 1, 2)  # [b, y, x]
-        xCov_A = torch.reshape(xCov_A, (-1, weights_mean.size(0)))  # [b*y, x]
-
-        A_xCov_A = torch.matmul(xCov_A, weights_mean)  # [b*y, y]
-        A_xCov_A = torch.reshape(A_xCov_A, (
-            -1, weights_mean.size(1), weights_mean.size(1)))  # [b, y, y]
-
-        term2 = A_xCov_A
-        term2_diag = matrix_diag_part(term2)
-
-        _, n, _ = term2.size()
-        idx = torch.arange(0, n)
-
-        result_diag = term1_diag + term2_diag
-
-        result = term2
-        result[:, idx, idx] = result_diag
-        return result
-
-    def _mcvi_forward(self, x):
-        if isinstance(x, tuple):
-            x = x[0]
-
+    def _mc_forward(self, x):
         if self.zero_mean:
             lrt_mean = 0.0
         else:
@@ -345,8 +293,8 @@ class LinearVDO(nn.Module):
 
         sigma2 = torch.exp(self.log_alpha) * self.W * self.W
         if self.permute_sigma:
-            sigma2 = sigma2.view(-1)[
-                torch.randperm(self.in_features * self.out_features).to()].view(
+            sigma2 = sigma2.view(-1)[torch.randperm(
+                self.in_features * self.out_features).cuda()].view(
                 self.out_features, self.in_features)
 
         lrt_std = torch.sqrt(1e-16 + F.linear(x * x, sigma2))
@@ -354,10 +302,10 @@ class LinearVDO(nn.Module):
             eps = lrt_std.data.new(lrt_std.size()).normal_()
         else:
             eps = 0.0
-        return lrt_mean + lrt_std * eps, None
+        return lrt_mean + lrt_std * eps
 
-    def compute_kl(self):
-        return self.W.nelement() * kl_loguni(
+    def kl_reg(self):
+        return self.W.nelement() * self.kl_fun(
             self.log_alpha) / self.log_alpha.nelement()
 
     def __repr__(self):
@@ -369,6 +317,27 @@ class LinearVDO(nn.Module):
                + ', bias=' + str(self.bias is not None) + ')' ', bias=' + str(
             self.bias is not None) + ')'
 
+    def _det_forward(self, x):
+        if isinstance(x, tuple):
+            x_mean = x[0]
+            x_var = x[1]
+        else:
+            x_mean = x
+            x_var = torch.diag_embed(x_mean * x_mean)
+
+        batch_size = x_mean.size(0)
+        sigma2 = torch.exp(self.log_alpha) * self.W * self.W
+        if self.zero_mean:
+            y_mean = torch.zeros(batch_size, self.out_features).cuda()
+        else:
+            y_mean = F.linear(x_mean, self.W)
+        if self.bias is not None:
+            y_mean = y_mean + self.bias
+
+        y_var = compute_linear_var(x_mean, x_var, self.W.t(), sigma2.t())
+        return y_mean, y_var
+
+
 
 class ReluVDO(LinearVDO):
     def forward(self, x):
@@ -376,10 +345,14 @@ class ReluVDO(LinearVDO):
         return super().forward(x)
 
     def _apply_activation(self, x):
-        x_mean = x[0]
-        x_var = x[1]
+        if isinstance(x, tuple):
+            x_mean = x[0]
+            x_var = x[1]
+        else:
+            x_mean = x
+            x_var = None
 
-        if not self.deterministic:
+        if x_var is None:
             z_mean = F.relu(x_mean)
             z_var = None
         else:
@@ -411,7 +384,7 @@ class HeavisideVDO(LinearVDO):
         mu = x_mean / (sqrt_x_var_diag + EPS)
 
         z_mean = gaussian_cdf(mu)
-        z_var = self.compute_var(x_var, x_var_diag, mu)
+        z_var = compute_heaviside_var(x_var, x_var_diag, mu)
 
         return z_mean, z_var
 

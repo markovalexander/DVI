@@ -192,8 +192,12 @@ class LinearGaussian(nn.Module):
 
 class ReluGaussian(LinearGaussian):
     def _apply_activation(self, x):
-        x_mean = x[0]
-        x_var = x[1]
+        if isinstance(x, tuple):
+            x_mean = x[0]
+            x_var = x[1]
+        else:
+            x_mean = x
+            x_var = None
 
         if x_var is None:
             z_mean = F.relu(x_mean)
@@ -284,10 +288,16 @@ class LinearVDO(nn.Module):
             return self._mc_forward(x)
 
     def _mc_forward(self, x):
+        if isinstance(x, tuple):
+            x_mean = x[0]
+            x_var = x[1]
+        else:
+            x_mean = x
+
         if self.zero_mean:
             lrt_mean = 0.0
         else:
-            lrt_mean = F.linear(x, self.W)
+            lrt_mean = F.linear(x_mean, self.W)
         if self.bias is not None:
             lrt_mean = lrt_mean + self.bias
 
@@ -297,7 +307,10 @@ class LinearVDO(nn.Module):
                 self.in_features * self.out_features).cuda()].view(
                 self.out_features, self.in_features)
 
-        lrt_std = torch.sqrt(1e-16 + F.linear(x * x, sigma2))
+        if x_var is None:
+            x_var = x_mean * x_mean
+
+        lrt_std = torch.sqrt(1e-16 + F.linear(x_var, sigma2))
         if self.training:
             eps = lrt_std.data.new(lrt_std.size()).normal_()
         else:
@@ -328,7 +341,8 @@ class LinearVDO(nn.Module):
         batch_size = x_mean.size(0)
         sigma2 = torch.exp(self.log_alpha) * self.W * self.W
         if self.zero_mean:
-            y_mean = torch.zeros(batch_size, self.out_features).cuda()
+            y_mean = torch.zeros(batch_size, self.out_features).to(
+                x_mean.device)
         else:
             y_mean = F.linear(x_mean, self.W)
         if self.bias is not None:
@@ -407,6 +421,9 @@ class VarianceGaussian(LinearGaussian):
         else:
             return self._mcvi_forward(x)
 
+    def compute_kl(self):
+        return 0
+
 
 class VarianceReluGaussian(ReluGaussian):
     def __init__(self, in_features, out_features,
@@ -421,6 +438,9 @@ class VarianceReluGaussian(ReluGaussian):
         else:
             return self._mcvi_forward(x)
 
+    def compute_kl(self):
+        return 0
+
 
 class VarianceHeavisideGaussian(HeavisideGaussian):
     def __init__(self, in_features, out_features,
@@ -434,6 +454,9 @@ class VarianceHeavisideGaussian(HeavisideGaussian):
             return self._det_forward(x)
         else:
             return self._mcvi_forward(x)
+
+    def compute_kl(self):
+        return 0
 
 
 class MeanFieldConv2d(nn.Module):
@@ -611,6 +634,25 @@ class MeanFieldConv2d(nn.Module):
                + ', stride=' + str(self.stride) \
                + ', padding=' + str(self.padding) \
                + ', activation=' + str(self.activation) + ')'
+
+
+class VarianceMeanFieldConv2d(MeanFieldConv2d):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1,
+                 activation='relu', padding=0, certain=False,
+                 deterministic=True):
+        super().__init__(in_channels, out_channels, kernel_size, stride,
+                         activation, padding, certain, deterministic)
+        self.W.data.fill_(0)
+        self.W.requires_grad = False
+
+    def compute_kl(self):
+        return 0
+
+    def _zero_mean_forward(self, x):
+        if self.deterministic:
+            return self._det_forward(x)
+        else:
+            return self._mcvi_forward(x)
 
 
 class AveragePoolGaussian(nn.Module):

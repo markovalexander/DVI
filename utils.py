@@ -8,6 +8,8 @@ import torch.nn.functional as F
 from sklearn.datasets import make_classification, make_circles
 from torchvision import datasets, transforms
 
+from bayesian_utils import sample_softmax, classification_posterior
+
 
 def one_hot_encoding(tensor, n_classes, device):
     ohe = torch.LongTensor(tensor.size(0), n_classes).to(device)
@@ -235,3 +237,57 @@ def mc_prediction(model, input, n_samples):
     probs = F.softmax(logits, dim=-1)
     mean_probs = torch.mean(probs, dim=0)
     return mean_probs
+
+
+def evaluate(model, loader, mode, args, zero_mean=False):
+    prev_mcvi, prev_samples = args.mcvi, args.use_samples
+    accuracy = []
+
+    if mode == 'mcvi':
+        model.set_flag('deterministic', False)
+        args.mcvi = True
+    if mode == 'dvi':
+        model.set_flag('deterministic', True)
+        args.mcvi = False
+    if mode == 'samples_dvi':
+        model.set_flag('deterministic', True)
+        args.use_samples = True
+
+    if zero_mean:
+        model.zero_mean()
+
+    with torch.no_grad():
+        for data, y_test in loader:
+            if args.arch == "fc":
+                x = data.view(-1, 28 * 28).to(args.device)
+            else:
+                x = data.to(args.device)
+
+            y = y_test.to(args.device)
+
+            if mode == 'mcvi':
+                probs = mc_prediction(model, x, args.mc_samples)
+            elif mode == 'samples_dvi':
+                activations = model(x)
+                probs = sample_softmax(activations, n_samples=args.mc_samples)
+            elif mode == 'dvi':
+                activations = model(x)
+                probs = classification_posterior(activations)
+            else:
+                raise ValueError('invalid mode for evaluate')
+
+            pred = torch.argmax(probs, dim=1)
+            accuracy.append((torch.sum(torch.squeeze(pred) == torch.squeeze(y),
+                                       dtype=torch.float32) / args.test_batch_size).item())
+
+    args.mcvi = prev_mcvi
+    args.use_samples = prev_samples
+    if prev_mcvi:
+        model.set_flag('mcvi', True)
+    else:
+        model.set_flag('deterministic', True)
+
+    if zero_mean:
+        model.zero_mean(False)
+
+    return np.mean(accuracy)

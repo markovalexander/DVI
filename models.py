@@ -205,14 +205,6 @@ class LeNetVDO(nn.Module):
             if hasattr(m, 'set_flag'):
                 m.set_flag(flag_name, value)
 
-    def print_alphas(self):
-        i = 1
-        for layer in self.children():
-            if hasattr(layer, 'log_alpha'):
-                print('{} var_layer log_alpha={:.5f}'.format(i,
-                                                             layer.log_alpha.item()))
-                i += 1
-
 
 class LeNetVariance(nn.Module):
     def __init__(self, args):
@@ -271,10 +263,8 @@ class LeNetVariance(nn.Module):
             if hasattr(m, 'set_flag'):
                 m.set_flag(flag_name, value)
 
-    def print_alphas(self):
-        i = 1
-        for layer in self.children():
-            if hasattr(layer, 'log_alpha'):
-                print('{} var_layer log_alpha={:.5f}'.format(i,
-                                                             layer.log_alpha.item()))
-                i += 1
+
+class LeNetConvVariance(LeNetVariance):
+    def __init__(self, args):
+        super().__init__(args)
+        self.conv2 = VarianceMeanFieldConv2d(6, 16, 5)

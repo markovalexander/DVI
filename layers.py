@@ -304,7 +304,7 @@ class LinearVDO(nn.Module):
             eps = 0.0
         return lrt_mean + lrt_std * eps
 
-    def kl_reg(self):
+    def compute_kl(self):
         return self.W.nelement() * self.kl_fun(
             self.log_alpha) / self.log_alpha.nelement()
 

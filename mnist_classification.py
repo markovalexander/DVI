@@ -72,8 +72,6 @@ if __name__ == "__main__":
             model = LeNetVariance(args).to(args.device)
         elif args.vdo:
             model = LeNetVDO(args).to(args.device)
-        elif args.var_conv:
-            model = LeNetConvVariance(args).to(args.device)
         else:
             model = LeNetDVI(args).to(args.device)
 

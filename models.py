@@ -211,7 +211,9 @@ class LeNetVariance(nn.Module):
         super().__init__()
 
         self.conv1 = MeanFieldConv2d(1, 6, 5, padding=2, certain=True)
-        self.conv2 = MeanFieldConv2d(6, 16, 5)
+        self.conv2 = MeanFieldConv2d(6, 16,
+                                     5) if not args.var_conv else VarianceMeanFieldConv2d(
+            6, 16, 5)
 
         if args.nonlinearity == 'relu':
             layer_factory = VarianceReluGaussian
@@ -262,9 +264,3 @@ class LeNetVariance(nn.Module):
         for m in self.children():
             if hasattr(m, 'set_flag'):
                 m.set_flag(flag_name, value)
-
-
-class LeNetConvVariance(LeNetVariance):
-    def __init__(self, args):
-        super().__init__(args)
-        self.conv2 = VarianceMeanFieldConv2d(6, 16, 5)

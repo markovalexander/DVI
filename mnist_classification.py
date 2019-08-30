@@ -188,3 +188,4 @@ if __name__ == "__main__":
         logger.iter_info()
         logger.save(silent=True)
         torch.save(model.state_dict(), logger.checkpoint)
+    logger.save()

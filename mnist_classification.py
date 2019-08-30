@@ -38,7 +38,8 @@ parser.add_argument('--n_layers', type=int, default=1,
                     help='number of variance or VDO layers for \
                     this architectures')
 parser.add_argument('--nonlinearity', type=str, default='relu')
-parser.add_argument('--checkpoint_dir', type=str, default='')
+parser.add_argument('--name', type=str, default='')
+parser.add_argument('--zm', action='store_true')
 
 fmt = {'kl': '3.3e',
        'tr_elbo': '3.3e',
@@ -68,7 +69,9 @@ if __name__ == "__main__":
         else:
             model = LinearDVI(args).to(args.device)
     elif args.arch.strip().lower() == "lenet":
-        if args.var_network:
+        if args.zm:
+            model = LeNetFullVariance(args).to(args.device)
+        elif args.var_network:
             model = LeNetVariance(args).to(args.device)
         elif args.vdo:
             model = LeNetVDO(args).to(args.device)
@@ -77,13 +80,13 @@ if __name__ == "__main__":
 
     logger_name = args.arch + ('-vdo' if args.vdo else '') \
                   + ('-vn' if args.var_network else '') \
-                  + ('-dvi' if not (args.vdo or args.var_network)
-                     else '')
+                  + ('-dvi' if not (args.vdo or args.var_network) else '') \
+                  + ('-{}'.format(args.name) if len(args.name) > 0 else '')
 
     for layer in model.children():
         i = 0
         if hasattr(layer, 'log_alpha'):
-            fmt.update({'{}_log_alpha'.format(i + 1): '3.3e'})
+            fmt.update({'{}log_alpha'.format(i + 1): '2.2e'})
             i += 1
 
     logger = Logger(logger_name, fmt=fmt)
@@ -139,7 +142,7 @@ if __name__ == "__main__":
 
             elbo.append(-loss.item())
             cat_mean.append(categorical_mean.item())
-            kls.append(kl.item())
+            kls.append(kl.item() if isinstance(kl, torch.Tensor) else kl)
             accuracy.append(
                 (torch.sum(torch.squeeze(pred) == torch.squeeze(y_train),
                            dtype=torch.float32) / args.batch_size).item())

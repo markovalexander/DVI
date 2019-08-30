@@ -264,3 +264,53 @@ class LeNetVariance(nn.Module):
         for m in self.children():
             if hasattr(m, 'set_flag'):
                 m.set_flag(flag_name, value)
+
+
+class LeNetFullVariance(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+
+        self.conv1 = VarianceMeanFieldConv2d(1, 6, 5, padding=2, certain=True)
+        self.conv2 = VarianceMeanFieldConv2d(6, 16, 5)
+
+        if args.nonlinearity == 'relu':
+            layer_factory = VarianceReluGaussian
+        else:
+            layer_factory = VarianceHeavisideGaussian
+
+        self.fc1 = layer_factory(16 * 5 * 5, 120)
+        self.fc2 = layer_factory(120, 84)
+        self.fc3 = DetermenisticReluGaussian(84, 10)
+
+        self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
+
+        if args.mcvi:
+            self.set_flag('deterministic', False)
+
+    def zero_mean(self, mode=True):
+        for layer in self.children():
+            if isinstance(layer, ReluVDO):
+                layer.set_flag('zero_mean', mode)
+
+    def forward(self, x):
+        x = self.avg_pool(self.conv1(x))
+        x = self.avg_pool(self.conv2(x))
+
+        x_mean = x[0]
+        x_var = x[1]
+
+        x_mean = x_mean.view(-1, 400)
+        if x_var is not None:
+            x_var = x_var.view(-1, 400)
+            x_var = torch.diag_embed(x_var)
+
+        x = (x_mean, x_var)
+        x = self.fc1(x)
+        x = self.fc2(x)
+        x = self.fc3(x)
+        return x
+
+    def set_flag(self, flag_name, value):
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)

@@ -38,6 +38,7 @@ parser.add_argument('--nonlinearity', type=str, default='relu')
 parser.add_argument('--name', type=str, default='')
 parser.add_argument('--zm', action='store_true')
 parser.add_argument('--no_mc', action='store_true')
+parser.add_argument('--use_samples', action='store_true')
 
 fmt = {'kl': '3.3e',
        'tr_elbo': '3.3e',

@@ -20,18 +20,15 @@ parser.add_argument('--arch', type=str, default="lenet")
 parser.add_argument('--anneal_updates', type=int, default=20)
 parser.add_argument('--warmup_updates', type=int, default=30)
 parser.add_argument('--mcvi', action='store_true')
-parser.add_argument('--mc_samples', default=10, type=int)
+parser.add_argument('--mc_samples', default=20, type=int)
 parser.add_argument('--clip_grad', type=float, default=0.5)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--gamma', type=float, default=0.5,
                     help='lr decrease rate in MultiStepLR scheduler')
-parser.add_argument('--milestones', nargs='+', type=int,
-                    default=[30, 50, 80, 95, 120])
+parser.add_argument('--milestones', nargs='+', type=int, default=[])
 parser.add_argument('--epochs', type=int, default=150)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--test_batch_size', type=int, default=32)
-parser.add_argument('--use_samples', action='store_true',
-                    help='use mc samples for determenistic probs on test stage.')
 parser.add_argument('--var_network', action='store_true')
 parser.add_argument('--vdo', action='store_true')
 parser.add_argument('--n_layers', type=int, default=1,
@@ -40,6 +37,7 @@ parser.add_argument('--n_layers', type=int, default=1,
 parser.add_argument('--nonlinearity', type=str, default='relu')
 parser.add_argument('--name', type=str, default='')
 parser.add_argument('--zm', action='store_true')
+parser.add_argument('--no_mc', action='store_true')
 
 fmt = {'kl': '3.3e',
        'tr_elbo': '3.3e',
@@ -160,9 +158,13 @@ if __name__ == "__main__":
         test_acc_dvi = evaluate(model, test_loader, mode='dvi', args=args)
         t_dvi = time() - t_dvi
 
-        t_mc = time()
-        test_acc_mcvi = evaluate(model, test_loader, mode='mcvi', args=args)
-        t_mc = time() - t_mc
+        if args.no_mc:
+            t_mc = 0
+            test_acc_mcvi = 0
+        else:
+            t_mc = time()
+            test_acc_mcvi = evaluate(model, test_loader, mode='mcvi', args=args)
+            t_mc = time() - t_mc
 
         test_acc_samples = evaluate(model, test_loader, mode='samples_dvi',
                                     args=args)

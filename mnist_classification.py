@@ -48,12 +48,11 @@ fmt = {'kl': '3.3e',
        'te_acc_dvi': '.4f',
        'te_acc_mcvi': '.4f',
        'te_acc_samples': '.4f',
-       'te_acc_dvi_zero_mean': '.4f',
-       'te_acc_mcvi_zero_mean': '.4f',
+       'te_acc_dvi_zm': '.4f',
+       'te_acc_mcvi_zm': '.4f',
        'tr_time': '.3f',
        'te_time_dvi': '.3f',
        'te_time_mcvi': '.3f'}
-
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -162,35 +161,37 @@ if __name__ == "__main__":
         test_acc_dvi = evaluate(model, test_loader, mode='dvi', args=args)
         t_dvi = time() - t_dvi
 
-        if args.no_mc:
-            t_mc = 0
-            test_acc_mcvi = 0
-        else:
+        if not args.no_mc:
             t_mc = time()
             test_acc_mcvi = evaluate(model, test_loader, mode='mcvi', args=args)
             t_mc = time() - t_mc
+            logger.add(epoch, te_acc_mcvi=test_acc_mcvi, te_time_mcvi=t_mc)
 
         test_acc_samples = evaluate(model, test_loader, mode='samples_dvi',
                                     args=args)
 
-        logger.add(epoch, te_acc_dvi=test_acc_dvi, te_acc_mcvi=test_acc_mcvi,
-                   te_acc_samples=test_acc_samples, te_time_dvi=t_dvi,
-                   te_time_mcvi=t_mc)
+        logger.add(epoch, te_acc_dvi=test_acc_dvi,
+                   te_acc_samples=test_acc_samples, te_time_dvi=t_dvi)
 
-        if isinstance(model, LeNetVDO) or isinstance(model, LinearVDO):
+        if isinstance(model, LeNetVDO) or isinstance(model,
+                                                     LinearVDO) or isinstance(
+            model.LeNetFullVDO):
             test_acc_zero_mean_dvi = evaluate(model, test_loader, mode='dvi',
                                               args=args, zero_mean=True)
-            test_acc_zero_mean_mcvi = evaluate(model, test_loader, mode='mcvi',
-                                               args=args, zero_mean=True)
+            logger.add(epoch, test_acc_dvi_zm=test_acc_zero_mean_dvi)
+            if not args.no_mc:
+                test_acc_zero_mean_mcvi = evaluate(model, test_loader,
+                                                   mode='mcvi',
+                                                   args=args, zero_mean=True)
 
-            logger.add(epoch, te_acc_dvi_zero_mean=test_acc_zero_mean_dvi,
-                       te_acc_mcvi_zero_mean=test_acc_zero_mean_mcvi)
+            logger.add(epoch,
+                       te_acc_mcvi_zm=test_acc_zero_mean_mcvi)
             i = 0
             alphas = {}
             for layer in model.children():
                 if hasattr(layer, 'log_alpha'):
                     alphas.update(
-                        {'{}_log_alpha'.format(i + 1): layer.log_alpha.item()})
+                        {'{}_log_a'.format(i + 1): layer.log_alpha.item()})
                     i += 1
             logger.add(epoch, **alphas)
 

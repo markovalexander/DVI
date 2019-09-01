@@ -173,9 +173,8 @@ if __name__ == "__main__":
         logger.add(epoch, te_acc_dvi=test_acc_dvi,
                    te_acc_samples=test_acc_samples, te_time_dvi=t_dvi)
 
-        if isinstance(model, LeNetVDO) or isinstance(model,
-                                                     LinearVDO) or isinstance(
-            model.LeNetFullVDO):
+        if isinstance(model, LeNetVDO) or isinstance(model, LinearVDO) \
+                or isinstance(model, LeNetFullVDO):
             test_acc_zero_mean_dvi = evaluate(model, test_loader, mode='dvi',
                                               args=args, zero_mean=True)
             logger.add(epoch, test_acc_dvi_zm=test_acc_zero_mean_dvi)

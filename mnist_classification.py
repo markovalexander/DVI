@@ -183,8 +183,7 @@ if __name__ == "__main__":
                                                    mode='mcvi',
                                                    args=args, zero_mean=True)
 
-            logger.add(epoch,
-                       te_acc_mcvi_zm=test_acc_zero_mean_mcvi)
+                logger.add(epoch, te_acc_mcvi_zm=test_acc_zero_mean_mcvi)
             i = 0
             alphas = {}
             for layer in model.children():

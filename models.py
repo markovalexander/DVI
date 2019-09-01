@@ -328,7 +328,8 @@ class LeNetFullVDO(nn.Module):
 
         self.fc1 = ReluVDO(16 * 5 * 5, 120, deterministic=not args.mcvi)
         self.fc2 = ReluVDO(120, 84, deterministic=not args.mcvi)
-        self.fc3 = ReluVDO(84, 10, deterministic=not args.mcvi)
+        self.fc3 = DetermenisticReluGaussian(84, 10,
+                                             deterministic=not args.mcvi)
 
         self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
 

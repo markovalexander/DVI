@@ -655,6 +655,182 @@ class VarianceMeanFieldConv2d(MeanFieldConv2d):
             return self._mcvi_forward(x)
 
 
+class MeanFieldConv2dVDO(nn.Module):
+
+    def __init__(self, in_channels, out_channels, kernel_size, alpha_shape,
+                 certain=False, activation='relu', deterministic=True, stride=1,
+                 padding=0, dilation=1, prior='loguni', bias=True):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = (kernel_size, kernel_size)
+        self.stride = stride
+        self.padding = padding
+        self.activation = activation
+        self.dilation = dilation
+        self.alpha_shape = alpha_shape
+        self.groups = 1
+        self.weight = nn.Parameter(
+            torch.Tensor(out_channels, in_channels, *self.kernel_size))
+        if bias:
+            self.bias = nn.Parameter(torch.Tensor(1, out_channels, 1, 1))
+        else:
+            self.register_parameter('bias', None)
+        self.op_bias = lambda input, kernel: F.conv2d(input, kernel,
+                                                      self.bias.flatten(),
+                                                      self.stride, self.padding,
+                                                      self.dilation,
+                                                      self.groups)
+        self.op_nobias = lambda input, kernel: F.conv2d(input, kernel, None,
+                                                        self.stride,
+                                                        self.padding,
+                                                        self.dilation,
+                                                        self.groups)
+        self.log_alpha = nn.Parameter(torch.Tensor(*alpha_shape))
+        self.reset_parameters()
+
+        self.certain = certain
+        self.deterministic = deterministic
+        self.mean_forward = False
+        self.zero_mean = False
+        self.permute_sigma = False
+
+        self.prior = prior
+        self.kl_fun = kl_loguni
+
+    def reset_parameters(self):
+        n = self.in_channels
+        for k in self.kernel_size:
+            n *= k
+        stdv = 1. / math.sqrt(n)
+        self.weight.data.uniform_(-stdv, stdv)
+        if self.bias is not None:
+            self.bias.data.uniform_(-stdv, stdv)
+        self.log_alpha.data.fill_(-5.0)
+
+    def forward(self, x):
+        x = self._apply_activation(x)
+        if self.zero_mean:
+            return self._zero_mean_forward(x)
+        elif self.mean_forward:
+            return self._mean_forward(x)
+        elif self.deterministic:
+            return self._det_forward(x)
+        else:
+            return self._mcvi_forward(x)
+
+    def _apply_activation(self, x):
+        if self.activation == 'relu' and not self.certain:
+            x_mean, x_var = x
+            if x_var is None:
+                x_var = x_mean * x_mean
+
+            sqrt_x_var = torch.sqrt(x_var + EPS)
+            mu = x_mean / sqrt_x_var
+            z_mean = sqrt_x_var * softrelu(mu)
+            z_var = x_var * (mu * standard_gaussian(mu) + (
+                    1 + mu ** 2) * gaussian_cdf(mu))
+            return z_mean, z_var
+        else:
+            return x
+
+    def _zero_mean_forward(self, x):
+        if self.certain or not self.deterministic:
+            x_mean = x if not isinstance(x, tuple) else x[0]
+            x_var = x_mean * x_mean
+        else:
+            x_mean = x[0]
+            x_var = x[1]
+
+        W_var = torch.exp(self.log_alpha) * self.weight * self.weight
+
+        z_mean = F.conv2d(x_mean, torch.zeros_like(self.weight), self.bias,
+                          self.stride,
+                          self.padding)
+        z_var = F.conv2d(x_var, W_var, bias=None, stride=self.stride,
+                         padding=self.padding)
+
+        if self.deterministic:
+            return z_mean, z_var
+        else:
+            dst = Independent(Normal(z_mean, z_var), 1)
+            sample = dst.rsample()
+            return sample, None
+
+    def _mean_forward(self, x):
+        if not isinstance(x, tuple):
+            x_mean = x
+        else:
+            x_mean = x[0]
+
+        z_mean = F.conv2d(x_mean, self.weight, self.bias,
+                          self.stride,
+                          self.padding)
+        return z_mean, None
+
+    def _det_forward(self, x):
+        if self.certain and isinstance(x, tuple):
+            x_mean = x[0]
+            x_var = x_mean * x_mean
+        elif not self.certain:
+            x_mean = x[0]
+            x_var = x[1]
+        else:
+            x_mean = x
+            x_var = x_mean * x_mean
+
+        W_var = torch.exp(self.log_alpha) * self.weight * self.weight
+
+        z_mean = F.conv2d(x_mean, self.weight, self.bias.flatten(),
+                          self.stride,
+                          self.padding)
+        z_var = F.conv2d(x_var, W_var, bias=None, stride=self.stride,
+                         padding=self.padding)
+        return z_mean, z_var
+
+    def _mcvi_forward(self, x):
+        if isinstance(x, tuple):
+            x_mean = x[0]
+            x_var = x[1]
+        else:
+            x_mean = x
+            x_var = x_mean * x_mean
+
+        if self.zero_mean:
+            lrt_mean = self.op_bias(x_mean, 0.0 * self.weight)
+        else:
+            lrt_mean = self.op_bias(x_mean, self.weight)
+
+        sigma2 = torch.exp(self.log_alpha) * self.weight * self.weight
+        if self.permute_sigma:
+            sigma2 = sigma2.view(-1)[
+                torch.randperm(self.weight.nelement()).cuda()].view(
+                self.weight.shape)
+
+        lrt_std = torch.sqrt(1e-16 + self.op_nobias(x_var, sigma2))
+        if self.training:
+            eps = lrt_std.data.new(lrt_std.size()).normal_()
+        else:
+            eps = 0.0
+        return lrt_mean + lrt_std * eps, None
+
+    def compute_kl(self):
+        return self.weight.nelement() / self.log_alpha.nelement() * kl_loguni(
+            self.log_alpha)
+
+    def __repr__(self):
+        s = ('{name}({in_channels}, {out_channels}, kernel_size={kernel_size}'
+             ', stride={stride}')
+        s += ', padding={padding}'
+        s += ', alpha_shape=' + str(self.alpha_shape)
+        s += ', prior=' + self.prior
+        s += ', dilation={dilation}'
+        if self.bias is None:
+            s += ', bias=False'
+        s += ')'
+        return s.format(name=self.__class__.__name__, **self.__dict__)
+
+
 class AveragePoolGaussian(nn.Module):
     def __init__(self, kernel_size, stride=None, padding=0):
         super().__init__()

@@ -14,6 +14,7 @@ EPS = 1e-6
 
 parser = argparse.ArgumentParser()
 
+parser.add_argument('--full_vdo', action='store_true')
 parser.add_argument('--var_conv', action='store_true')
 parser.add_argument('--device', type=int, default=0)
 parser.add_argument('--arch', type=str, default="lenet")
@@ -68,7 +69,9 @@ if __name__ == "__main__":
         else:
             model = LinearDVI(args).to(args.device)
     elif args.arch.strip().lower() == "lenet":
-        if args.zm:
+        if args.full_vdo:
+            model = LeNetFullVDO(args).to(args.device)
+        elif args.zm:
             model = LeNetFullVariance(args).to(args.device)
         elif args.var_network:
             model = LeNetVariance(args).to(args.device)

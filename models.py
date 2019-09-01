@@ -314,3 +314,51 @@ class LeNetFullVariance(nn.Module):
         for m in self.children():
             if hasattr(m, 'set_flag'):
                 m.set_flag(flag_name, value)
+
+
+class LeNetFullVDO(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+
+        self.conv1 = MeanFieldConv2dVDO(1, 6, 5, padding=2, certain=True,
+                                        alpha_shape=(1, 1, 1, 1),
+                                        deterministic=not args.mcvi)
+        self.conv2 = MeanFieldConv2dVDO(6, 16, 5, alpha_shape=(1, 1, 1, 1),
+                                        deterministic=not args.mcvi)
+
+        self.fc1 = ReluVDO(16 * 5 * 5, 120, deterministic=not args.mcvi)
+        self.fc2 = ReluVDO(120, 84, deterministic=not args.mcvi)
+        self.fc3 = ReluVDO(84, 10, deterministic=not args.mcvi)
+
+        self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
+
+        if args.mcvi:
+            self.set_flag('deterministic', False)
+
+    def zero_mean(self, mode=True):
+        for layer in self.children():
+            if isinstance(layer, ReluVDO):
+                layer.set_flag('zero_mean', mode)
+
+    def forward(self, x):
+        x = self.avg_pool(self.conv1(x))
+        x = self.avg_pool(self.conv2(x))
+
+        x_mean = x[0]
+        x_var = x[1]
+
+        x_mean = x_mean.view(-1, 400)
+        if x_var is not None:
+            x_var = x_var.view(-1, 400)
+            x_var = torch.diag_embed(x_var)
+
+        x = (x_mean, x_var)
+        x = self.fc1(x)
+        x = self.fc2(x)
+        x = self.fc3(x)
+        return x
+
+    def set_flag(self, flag_name, value):
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)

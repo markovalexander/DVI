@@ -626,6 +626,12 @@ class MeanFieldConv2d(nn.Module):
         else:
             return x
 
+    def set_flag(self, flag_name, value):
+        setattr(self, flag_name, value)
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)
+
     def __repr__(self):
         return self.__class__.__name__ + '(' \
                + 'in_channels=' + str(self.in_channels) \

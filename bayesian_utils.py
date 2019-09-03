@@ -204,6 +204,9 @@ def classification_posterior(activations):
     mean, var = activations
     p = F.softmax(mean, dim=1)
     diagVar = matrix_diag_part(var)
+    if torch.any(torch.isnan(diagVar)):
+        print(type(activations), var.size())
+
     pTdiagVar = torch.sum(p * diagVar, dim=-1, keepdim=True)
     pTVarp = torch.squeeze(torch.matmul(torch.unsqueeze(p, 1),
                                         torch.matmul(var,

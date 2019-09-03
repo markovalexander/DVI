@@ -105,6 +105,9 @@ if __name__ == "__main__":
     else:
         scheduler = None
 
+    if isinstance(model, LeNetFullVariance):
+        criterion.set_flag("log_mean", True)
+
     for epoch in range(args.epochs):
         t0 = time()
 

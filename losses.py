@@ -133,7 +133,7 @@ class ClassificationLoss(nn.Module):
         elif self.mcvi:
             logsoftmax = F.log_softmax(logits[0], dim=1)
         elif self.log_mean:
-            logsoftmax = torch.log(classification_posterior(logits))
+            logsoftmax = torch.log(classification_posterior(logits) + EPS)
 
         assert not target.requires_grad
         kl = 0.0

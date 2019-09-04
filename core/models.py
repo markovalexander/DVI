@@ -193,7 +193,10 @@ class LeNetVDO(nn.Module):
     def zero_mean(self, mode=True):
         for layer in self.children():
             if isinstance(layer, ReluVDO):
-                layer.set_flag('zero_mean', mode)
+                if layer.log_alpha > 3 and mode:
+                    layer.set_flag('zero_mean', mode)
+                if not mode:
+                    layer.set_flag('zero_mean', False)
 
     def forward(self, x):
         x = self.avg_pool(self.conv1(x))

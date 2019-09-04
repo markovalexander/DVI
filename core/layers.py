@@ -866,3 +866,9 @@ class AveragePoolGaussian(nn.Module):
                + 'kernel_size= ' + str(self.kernel_size) \
                + ', stride=' + str(self.stride) \
                + ', padding=' + str(self.padding) + ')'
+
+    def set_flag(self, flag_name, value):
+        setattr(self, flag_name, value)
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)

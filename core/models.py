@@ -94,14 +94,6 @@ class LinearVDO(nn.Module):
             if isinstance(layer, ReluVDO):
                 layer.set_flag('zero_mean', mode)
 
-    def print_alphas(self):
-        i = 1
-        for layer in self.children():
-            if hasattr(layer, 'log_alpha'):
-                print('{} var_layer log_alpha={:.5f}'.format(i,
-                                                             layer.log_alpha.item()))
-                i += 1
-
 
 class LeNetDVI(nn.Module):
     def __init__(self, args):
@@ -170,7 +162,7 @@ class LeNetVDO(nn.Module):
         if args.vdo3:
             self.fc1 = ReluVDO(16 * 5 * 5, 120, deterministic=not args.mcvi)
         else:
-            self.fc2 = DetermenisticReluGaussian(16 * 5 * 5, 84,
+            self.fc1 = DetermenisticReluGaussian(16 * 5 * 5, 120,
                                                  deterministic=not args.mcvi)
 
         if args.vdo4:
@@ -192,7 +184,8 @@ class LeNetVDO(nn.Module):
 
     def zero_mean(self, mode=True):
         for layer in self.children():
-            if isinstance(layer, ReluVDO):
+            if isinstance(layer, ReluVDO) or isinstance(layer,
+                                                        MeanFieldConv2dVDO):
                 if layer.log_alpha > 3 and mode:
                     layer.set_flag('zero_mean', mode)
                 if not mode:

@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
         test_acc_zero_mean_dvi = evaluate(model, test_loader, mode='dvi',
                                           args=args, zero_mean=True)
-        logger.add(epoch, test_acc_dvi_zm=test_acc_zero_mean_dvi)
+        logger.add(epoch, te_acc_dvi_zm=test_acc_zero_mean_dvi)
         if not args.no_mc:
             test_acc_zero_mean_mcvi = evaluate(model, test_loader,
                                                mode='mcvi',

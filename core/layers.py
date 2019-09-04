@@ -308,14 +308,11 @@ class LinearVDO(nn.Module):
                 self.out_features, self.in_features)
 
         if x_var is None:
-            x_var = x_mean * x_mean
+            x_var = torch.diag_embed(x_mean * x_mean)
 
-        lrt_std = torch.sqrt(1e-16 + F.linear(x_var, sigma2))
-        if self.training:
-            eps = lrt_std.data.new(lrt_std.size()).normal_()
-        else:
-            eps = 0.0
-        return lrt_mean + lrt_std * eps
+        lrt_cov = compute_linear_var(x_mean, x_var, self.W.t(), sigma2.t())
+        dst = MultivariateNormal(lrt_mean, covariance_matrix=lrt_cov)
+        return dst.rsample(), None
 
     def compute_kl(self):
         return self.W.nelement() * self.kl_fun(

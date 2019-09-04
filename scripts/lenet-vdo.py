@@ -30,11 +30,11 @@ parser.add_argument('--zm', action='store_true')
 parser.add_argument('--no_mc', action='store_true')
 parser.add_argument('--use_samples', action='store_true')
 
-parser.add_argument('--vdo-1', action='store_true')
-parser.add_argument('--vdo-2', action='store_true')
-parser.add_argument('--vdo-3', action='store_true')
-parser.add_argument('--vdo-4', action='store_true')
-parser.add_argument('--vdo-5', action='store_true')
+parser.add_argument('--vdo1', action='store_true')
+parser.add_argument('--vdo2', action='store_true')
+parser.add_argument('--vdo3', action='store_true')
+parser.add_argument('--vdo4', action='store_true')
+parser.add_argument('--vdo5', action='store_true')
 
 fmt = {'kl': '3.3e',
        'tr_elbo': '3.3e',

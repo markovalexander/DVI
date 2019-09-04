@@ -152,7 +152,7 @@ class LeNetVDO(nn.Module):
     def __init__(self, args):
         super().__init__()
 
-        if args.vdo_1:
+        if args.vdo1:
             self.conv1 = MeanFieldConv2dVDO(1, 6, 5, padding=2, certain=True,
                                             deterministic=not args.mcvi,
                                             alpha_shape=(1, 1, 1, 1))
@@ -160,26 +160,26 @@ class LeNetVDO(nn.Module):
             self.conv1 = MeanFieldConv2d(1, 6, 5, padding=2, certain=True,
                                          deterministic=not args.mcvi)
 
-        if args.vdo_2:
+        if args.vdo2:
             self.conv2 = MeanFieldConv2dVDO(6, 16, 5,
                                             deterministic=not args.mcvi,
                                             alpha_shape=(1, 1, 1, 1))
         else:
             self.conv2 = MeanFieldConv2d(6, 16, 5, deterministic=not args.mcvi)
 
-        if args.vdo_3:
+        if args.vdo3:
             self.fc1 = ReluVDO(16 * 5 * 5, 120, deterministic=not args.mcvi)
         else:
             self.fc2 = DetermenisticReluGaussian(16 * 5 * 5, 84,
                                                  deterministic=not args.mcvi)
 
-        if args.vdo_4:
+        if args.vdo4:
             self.fc2 = ReluVDO(120, 84, deterministic=not args.mcvi)
         else:
             self.fc2 = DetermenisticReluGaussian(120, 84,
                                                  deterministic=not args.mcvi)
 
-        if args.vdo_5:
+        if args.vdo5:
             self.fc3 = ReluVDO(84, 10, deterministic=not args.mcvi)
         else:
             self.fc3 = DetermenisticReluGaussian(84, 10,
@@ -223,7 +223,7 @@ class LeNetVariance(nn.Module):
     def __init__(self, args):
         super().__init__()
 
-        if args.var_1:
+        if args.var1:
             self.conv1 = VarianceMeanFieldConv2d(1, 6, 5, padding=2,
                                                  certain=True,
                                                  deterministic=not args.mcvi)
@@ -231,27 +231,27 @@ class LeNetVariance(nn.Module):
             self.conv1 = MeanFieldConv2d(1, 6, 5, padding=2, certain=True,
                                          deterministic=not args.mcvi)
 
-        if args.var_2:
+        if args.var2:
             self.conv2 = VarianceMeanFieldConv2d(6, 16, 5,
                                                  deterministic=not args.mcvi)
         else:
             self.conv2 = MeanFieldConv2d(6, 16, 5, deterministic=not args.mcvi)
 
-        if args.var_3:
+        if args.var3:
             self.fc1 = VarianceReluGaussian(16 * 5 * 5, 120,
                                             deterministic=not args.mcvi)
         else:
             self.fc2 = DetermenisticReluGaussian(16 * 5 * 5, 84,
                                                  deterministic=not args.mcvi)
 
-        if args.var_4:
+        if args.var4:
             self.fc2 = VarianceReluGaussian(120, 84,
                                             deterministic=not args.mcvi)
         else:
             self.fc2 = DetermenisticReluGaussian(120, 84,
                                                  deterministic=not args.mcvi)
 
-        if args.var_5:
+        if args.var5:
             self.fc3 = VarianceReluGaussian(84, 10, deterministic=not args.mcvi)
         else:
             self.fc3 = DetermenisticReluGaussian(84, 10,

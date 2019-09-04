@@ -55,7 +55,6 @@ if __name__ == "__main__":
         'cuda:{}'.format(args.device) if torch.cuda.is_available() else 'cpu')
 
     model = LeNetVDO(args).to(args.device)
-    print(model)
 
     args.batch_size, args.test_batch_size = 128, 128
     train_loader, test_loader = load_mnist(args)

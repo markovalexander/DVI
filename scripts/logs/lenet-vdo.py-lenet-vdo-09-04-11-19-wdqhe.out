@@ -1,0 +1,9 @@
+Namespace(anneal_updates=1, batch_size=128, clip_grad=0.5, data_size=60000, device=device(type='cpu'), epochs=150, lr=0.001, mc_samples=20, mcvi=False, no_mc=False, test_batch_size=128, use_samples=False, vdo_1=False, vdo_2=True, vdo_3=True, vdo_4=True, vdo_5=False, warmup_updates=0, zm=False)
+LeNetVDO(
+  (conv1): MeanFieldConv2d(in_channels=1, out_channels=6, kernel_size=(5, 5), stride=1, padding=2, activation=relu)
+  (conv2): MeanFieldConv2dVDO(6, 16, kernel_size=(5, 5), stride=1, padding=0, alpha_shape=(1, 1, 1, 1), prior=loguni, dilation=1)
+  (fc1): ReluVDO(in_features=400, out_features=120, alpha_shape=(1, 1), prior=loguni, bias=True), bias=True)
+  (fc2): ReluVDO(in_features=120, out_features=84, alpha_shape=(1, 1), prior=loguni, bias=True), bias=True)
+  (fc3): DetermenisticReluGaussian(in_features=84, out_features=10)
+  (avg_pool): AveragePoolGaussian(kernel_size= (2, 2), stride=None, padding=0)
+)

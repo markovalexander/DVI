@@ -5,8 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from numpy import clip
 
-from bayesian_utils import logsoftmax_mean
-from utils import classification_posterior
+from .bayesian_utils import logsoftmax_mean
+from .utils import classification_posterior
 
 EPS = 1e-8
 

@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal, Independent, Normal
 
-from bayesian_utils import kl_gaussian, softrelu, matrix_diag_part, kl_loguni, \
+from .bayesian_utils import kl_gaussian, softrelu, matrix_diag_part, kl_loguni, \
     compute_linear_var, compute_relu_var, standard_gaussian, gaussian_cdf, \
     compute_heaviside_var
 

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from sklearn.datasets import make_classification, make_circles
 from torchvision import datasets, transforms
 
-from bayesian_utils import sample_softmax, classification_posterior
+from .bayesian_utils import sample_softmax, classification_posterior
 
 
 def one_hot_encoding(tensor, n_classes, device):
@@ -16,6 +16,11 @@ def one_hot_encoding(tensor, n_classes, device):
     ohe.zero_()
     ohe.scatter_(1, tensor, 1)
     return ohe
+
+
+def pred2acc(pred, y, batch_size):
+    t = torch.sum(torch.squeeze(pred) == torch.squeeze(y), dtype=torch.float32)
+    return (t / batch_size).item()
 
 
 def toy_results_plot_regression(data, data_generator, predictions=None,
@@ -203,35 +208,6 @@ def load_checkpoint(experiment, name='last.pth.tar'):
     return checkpoint['state_dict']
 
 
-def report(dir, epoch, elbo, cat_mean, kl, accuracy, test_acc_prob,
-           zero_mean_acc=None):
-    message = "\nELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}\n".format(
-        elbo, cat_mean, kl)
-    message += "train accuracy: {:.4f}\t".format(accuracy)
-    message += "test_accuracy: {:.4f}\t".format(test_acc_prob)
-    if zero_mean_acc is not None:
-        message += "zero_mean_acc: {:.4f}\t".format(zero_mean_acc)
-    print(message)
-
-    message = "\nepoch: {}\n".format(epoch) + message
-    with open(os.path.join(dir, 'report'), 'a') as f:
-        print(message, file=f)
-
-
-def prepare_directory(args):
-    if args.checkpoint_dir == '':
-        args.checkpoint_dir = os.path.join('checkpoints', 'last_expirement')
-    else:
-        args.checkpoint_dir = os.path.join('checkpoints', args.checkpoint_dir)
-
-    os.makedirs(args.checkpoint_dir, exist_ok=True)
-    os.system('rm -rf %s/*' % args.checkpoint_dir)
-
-    print(args)
-    with open(os.path.join(args.checkpoint_dir, 'hypers'), 'w') as f:
-        print(args, file=f)
-
-
 def mc_prediction(model, input, n_samples):
     logits = torch.stack([model(input)[0] for _ in range(n_samples)], dim=0)
     probs = F.softmax(logits, dim=-1)
@@ -277,8 +253,7 @@ def evaluate(model, loader, mode, args, zero_mean=False):
                 raise ValueError('invalid mode for evaluate')
 
             pred = torch.argmax(probs, dim=1)
-            accuracy.append((torch.sum(torch.squeeze(pred) == torch.squeeze(y),
-                                       dtype=torch.float32) / args.test_batch_size).item())
+            accuracy.append(pred2acc(pred, y, args.test_batch_size))
 
     args.mcvi = prev_mcvi
     args.use_samples = prev_samples

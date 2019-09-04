@@ -833,6 +833,12 @@ class MeanFieldConv2dVDO(nn.Module):
         s += ')'
         return s.format(name=self.__class__.__name__, **self.__dict__)
 
+    def set_flag(self, flag_name, value):
+        setattr(self, flag_name, value)
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)
+
 
 class AveragePoolGaussian(nn.Module):
     def __init__(self, kernel_size, stride=None, padding=0):

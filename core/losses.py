@@ -108,7 +108,7 @@ class ClassificationLoss(nn.Module):
         self.use_samples = args.use_samples
         self.n_samples = args.mc_samples
         self._step = 0
-        self.log_mean = False
+        self.log_mean = vars(args).get('var5', False)
 
     def set_flag(self, flag_name, value):
         setattr(self, flag_name, value)

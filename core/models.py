@@ -241,7 +241,7 @@ class LeNetVariance(nn.Module):
             self.fc1 = VarianceReluGaussian(16 * 5 * 5, 120,
                                             deterministic=not args.mcvi)
         else:
-            self.fc2 = DetermenisticReluGaussian(16 * 5 * 5, 84,
+            self.fc1 = DetermenisticReluGaussian(16 * 5 * 5, 120,
                                                  deterministic=not args.mcvi)
 
         if args.var4:

@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     model = LeNetDVI(args).to(args.device)
 
-    args.batch_size, args.test_batch_size = 128, 128
+    args.batch_size, args.test_batch_size = 32, 32
     train_loader, test_loader = load_mnist(args)
     args.data_size = len(train_loader.dataset)
 

@@ -49,12 +49,15 @@ fmt = {'kl': '3.3e',
 
 
 def forward_hook(self, input, output):
-    if torch.any(torch.isnan(output)):
-        print(self.__cls__.__name__ + 'forward output nan')
+    if isinstance(output, tuple):
+        if torch.any(torch.isnan(output[0])):
+            print(self.__cls__.__name__ + 'forward output_mean nan')
+        if output[1] is not None and torch.any(torch.isnan(output[1])):
+            print(self.__cls__.__name__ + 'forward output_var nan')
 
 
 def backward_hook(self, grad_input, grad_output):
-    if torch.any(torch.isnan(grad_output)):
+    if torch.any(torch.isnan(grad_output[0])):
         print(self.__cls__.__name__ + 'backward grad_output nan')
 
 

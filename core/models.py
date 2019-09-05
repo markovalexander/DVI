@@ -38,12 +38,12 @@ class LinearVariance(nn.Module):
             self.fc1 = DeterministicGaussian(784, 300, certain=True)
 
         if args.var2:
-            self.fc2 = VarianceGaussian(300, 100)
+            self.fc2 = VarianceReluGaussian(300, 100)
         else:
             self.fc2 = DeterministicReluGaussian(300, 100)
 
         if args.var3:
-            self.fc3 = VarianceGaussian(100, 10)
+            self.fc3 = VarianceReluGaussian(100, 10)
         else:
             self.fc3 = DeterministicReluGaussian(100, 10)
 

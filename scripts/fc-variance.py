@@ -53,6 +53,8 @@ if __name__ == "__main__":
         'cuda:{}'.format(args.device) if torch.cuda.is_available() else 'cpu')
 
     args.reshape = True
+    if args.var3:
+        args.change_criterion = True
     model = LinearVariance(args).to(args.device)
 
     args.batch_size, args.test_batch_size = 32, 32

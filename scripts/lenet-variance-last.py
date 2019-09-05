@@ -68,6 +68,8 @@ if __name__ == "__main__":
         'cuda:{}'.format(args.device) if torch.cuda.is_available() else 'cpu')
 
     args.var5 = True
+    args.change_criterion = True
+
     model = LeNetVariance(args).to(args.device)
 
     args.batch_size, args.test_batch_size = 32, 32

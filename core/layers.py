@@ -232,7 +232,28 @@ class HeavisideGaussian(LinearGaussian):
         return z_mean, z_var
 
 
-class DetermenisticReluGaussian(ReluGaussian):
+class DeterministicGaussian(LinearGaussian):
+    def __init__(self, in_features, out_features, certain=False,
+                 deterministic=True):
+        """
+        Applies linear transformation y = xA^T + b
+
+        A and b are Gaussian random variables
+
+        :param in_features: input dimension
+        :param out_features: output dimension
+        :param certain:  if true, than x is equal to its mean and has no variance
+        """
+
+        super().__init__(in_features, out_features, certain, deterministic)
+        self.W_logvar.requires_grad = False
+        self.bias_logvar.requires_grad = False
+
+    def compute_kl(self):
+        return 0
+
+
+class DeterministicReluGaussian(ReluGaussian):
     def __init__(self, in_features, out_features, certain=False,
                  deterministic=True):
         """

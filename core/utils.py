@@ -235,6 +235,9 @@ def evaluate(model, loader, mode, args, zero_mean=False):
     with torch.no_grad():
         for data, y_test in loader:
             x = data.to(args.device)
+            if args.reshape:
+                x = x.view(-1, 784)
+
             y = y_test.to(args.device)
 
             if mode == 'mcvi':

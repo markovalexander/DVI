@@ -31,19 +31,21 @@ class LinearDVI(nn.Module):
 class LinearVariance(nn.Module):
     def __init__(self, args):
         super().__init__()
-        self.fc1 = LinearGaussian(784, 300, certain=True)
 
-        if args.nonlinearity == 'relu':
-            layer_factory = VarianceReluGaussian
+        if args.var1:
+            self.fc1 = VarianceGaussian(784, 300, certain=True)
         else:
-            layer_factory = VarianceHeavisideGaussian
+            self.fc1 = DeterministicGaussian(784, 300, certain=True)
 
-        self.fc2 = layer_factory(300, 100)
-
-        if args.n_layers > 1:
-            self.fc3 = layer_factory(100, 10)
+        if args.var2:
+            self.fc2 = VarianceGaussian(300, 100)
         else:
-            self.fc3 = DetermenisticReluGaussian(100, 10)
+            self.fc2 = DeterministicReluGaussian(300, 100)
+
+        if args.var3:
+            self.fc3 = VarianceGaussian(100, 10)
+        else:
+            self.fc3 = DeterministicReluGaussian(100, 10)
 
         if args.mcvi:
             self.set_flag('deterministic', False)
@@ -74,7 +76,7 @@ class LinearVDO(nn.Module):
         if args.n_layers > 1:
             self.fc3 = layer_factory(100, 10, deterministic=not args.mcvi)
         else:
-            self.fc3 = DetermenisticReluGaussian(100, 10)
+            self.fc3 = DeterministicReluGaussian(100, 10)
 
         if args.mcvi:
             self.set_flag('deterministic', False)
@@ -162,19 +164,19 @@ class LeNetVDO(nn.Module):
         if args.vdo3:
             self.fc1 = ReluVDO(16 * 5 * 5, 120, deterministic=not args.mcvi)
         else:
-            self.fc1 = DetermenisticReluGaussian(16 * 5 * 5, 120,
+            self.fc1 = DeterministicReluGaussian(16 * 5 * 5, 120,
                                                  deterministic=not args.mcvi)
 
         if args.vdo4:
             self.fc2 = ReluVDO(120, 84, deterministic=not args.mcvi)
         else:
-            self.fc2 = DetermenisticReluGaussian(120, 84,
+            self.fc2 = DeterministicReluGaussian(120, 84,
                                                  deterministic=not args.mcvi)
 
         if args.vdo5:
             self.fc3 = ReluVDO(84, 10, deterministic=not args.mcvi)
         else:
-            self.fc3 = DetermenisticReluGaussian(84, 10,
+            self.fc3 = DeterministicReluGaussian(84, 10,
                                                  deterministic=not args.mcvi)
 
         self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))
@@ -237,20 +239,20 @@ class LeNetVariance(nn.Module):
             self.fc1 = VarianceReluGaussian(16 * 5 * 5, 120,
                                             deterministic=not args.mcvi)
         else:
-            self.fc1 = DetermenisticReluGaussian(16 * 5 * 5, 120,
+            self.fc1 = DeterministicReluGaussian(16 * 5 * 5, 120,
                                                  deterministic=not args.mcvi)
 
         if args.var4:
             self.fc2 = VarianceReluGaussian(120, 84,
                                             deterministic=not args.mcvi)
         else:
-            self.fc2 = DetermenisticReluGaussian(120, 84,
+            self.fc2 = DeterministicReluGaussian(120, 84,
                                                  deterministic=not args.mcvi)
 
         if args.var5:
             self.fc3 = VarianceReluGaussian(84, 10, deterministic=not args.mcvi)
         else:
-            self.fc3 = DetermenisticReluGaussian(84, 10,
+            self.fc3 = DeterministicReluGaussian(84, 10,
                                                  deterministic=not args.mcvi)
 
         self.avg_pool = AveragePoolGaussian(kernel_size=(2, 2))

@@ -138,10 +138,7 @@ if __name__ == "__main__":
             t_mc = time() - t_mc
             logger.add(epoch, te_acc_mcvi=test_acc_mcvi, te_time_mcvi=t_mc)
 
-        test_acc_samples = evaluate(model, test_loader, mode='samples_dvi',
-                                    args=args)
-        logger.add(epoch, te_acc_dvi=test_acc_dvi,
-                   te_acc_samples=test_acc_samples, te_time_dvi=t_dvi)
+        logger.add(epoch, te_acc_dvi=test_acc_dvi, te_time_dvi=t_dvi)
 
         logger.iter_info()
         logger.save(silent=True)

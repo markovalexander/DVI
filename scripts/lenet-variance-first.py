@@ -61,7 +61,7 @@ def forward_hook(self, input, output):
 
 def backward_hook(self, grad_input, grad_output):
     if torch.any(torch.isnan(grad_output[0])):
-        print(self.__cls__.__name__ + 'backward grad_output nan')
+        print(self().__cls__.__name__ + 'backward grad_output nan')
 
 
 if __name__ == "__main__":
@@ -72,9 +72,9 @@ if __name__ == "__main__":
     args.var1 = True
     model = LeNetVariance(args).to(args.device)
 
-    for layer in model.children():
-        layer.register_forward_hook(forward_hook)
-        layer.register_backward_hook(backward_hook)
+    # for layer in model.children():
+    #     layer.register_forward_hook(forward_hook)
+    #     layer.register_backward_hook(backward_hook)
 
     args.batch_size, args.test_batch_size = 32, 32
     train_loader, test_loader = load_mnist(args)

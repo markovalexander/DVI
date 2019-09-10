@@ -77,9 +77,9 @@ if __name__ == "__main__":
     train_loader, test_loader = load_mnist(args)
     args.data_size = len(train_loader.dataset)
 
-    for layer in model.children():
-        layer.register_forward_hook(forward_hook)
-        layer.register_backward_hook(backward_hook)
+    # for layer in model.children():
+    #     layer.register_forward_hook(forward_hook)
+    #     layer.register_backward_hook(backward_hook)
 
     logger = Logger('lenet-variance', fmt=fmt)
     logger.print(args)

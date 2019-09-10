@@ -67,9 +67,9 @@ class LinearGaussian(nn.Module):
         return torch.exp(param)
 
     def compute_kl(self):
-        weights_kl = kl_gaussian(self.W, torch.exp(self.W_logvar),
+        weights_kl = kl_gaussian(self.W, self._get_var(self.W_logvar),
                                  self.W_mean_prior, self.W_var_prior)
-        bias_kl = kl_gaussian(self.bias, torch.exp(self.bias_logvar),
+        bias_kl = kl_gaussian(self.bias, self._get_var(self.bias_logvar),
                               self.bias_mean_prior, self.bias_var_prior)
         return weights_kl + bias_kl
 
@@ -540,9 +540,9 @@ class MeanFieldConv2d(nn.Module):
             requires_grad=False)
 
     def compute_kl(self):
-        weights_kl = kl_gaussian(self.W, torch.exp(self.W_logvar),
+        weights_kl = kl_gaussian(self.W, self._get_var(self.W_logvar),
                                  self.W_mean_prior, self.W_var_prior)
-        bias_kl = kl_gaussian(self.bias, torch.exp(self.bias_logvar),
+        bias_kl = kl_gaussian(self.bias, self._get_var(self.bias_logvar),
                               self.bias_mean_prior, self.bias_var_prior)
         return weights_kl + bias_kl
 

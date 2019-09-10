@@ -29,6 +29,8 @@ parser.add_argument('--epochs', type=int, default=150)
 parser.add_argument('--zm', action='store_true')
 parser.add_argument('--no_mc', action='store_true')
 parser.add_argument('--use_samples', action='store_true')
+parser.add_argument('--reshape', action='store_true', default=False)
+
 
 fmt = {'kl': '3.3e',
        'tr_elbo': '3.3e',

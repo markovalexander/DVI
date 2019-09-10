@@ -29,6 +29,7 @@ parser.add_argument('--epochs', type=int, default=150)
 parser.add_argument('--zm', action='store_true')
 parser.add_argument('--no_mc', action='store_true')
 parser.add_argument('--use_samples', action='store_true')
+parser.add_argument('--reshape', action='store_true', default=False)
 
 parser.add_argument('--var1', action='store_true')
 parser.add_argument('--var2', action='store_true')
@@ -69,7 +70,6 @@ if __name__ == "__main__":
 
     args.var5 = True
     args.change_criterion = True
-
     model = LeNetVariance(args).to(args.device)
 
     args.batch_size, args.test_batch_size = 32, 32

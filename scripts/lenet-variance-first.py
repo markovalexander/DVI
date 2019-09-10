@@ -29,6 +29,7 @@ parser.add_argument('--epochs', type=int, default=150)
 parser.add_argument('--zm', action='store_true')
 parser.add_argument('--no_mc', action='store_true')
 parser.add_argument('--use_samples', action='store_true')
+parser.add_argument('--reshape', action='store_true', default=False)
 
 parser.add_argument('--var2', action='store_true')
 parser.add_argument('--var3', action='store_true')
@@ -67,7 +68,6 @@ if __name__ == "__main__":
         'cuda:{}'.format(args.device) if torch.cuda.is_available() else 'cpu')
 
     args.var1 = True
-    args.var5 = False
     model = LeNetVariance(args).to(args.device)
 
     for layer in model.children():

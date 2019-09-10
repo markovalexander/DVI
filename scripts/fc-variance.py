@@ -29,6 +29,7 @@ parser.add_argument('--epochs', type=int, default=150)
 parser.add_argument('--zm', action='store_true')
 parser.add_argument('--no_mc', action='store_true')
 parser.add_argument('--use_samples', action='store_true')
+parser.add_argument('--reshape', action='store_true', default=True)
 
 parser.add_argument('--var1', action='store_true')
 parser.add_argument('--var2', action='store_true')
@@ -52,7 +53,6 @@ if __name__ == "__main__":
     args.device = torch.device(
         'cuda:{}'.format(args.device) if torch.cuda.is_available() else 'cpu')
 
-    args.reshape = True
     if args.var3:
         args.change_criterion = True
     model = LinearVariance(args).to(args.device)

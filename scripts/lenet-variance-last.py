@@ -31,7 +31,6 @@ parser.add_argument('--no_mc', action='store_true')
 parser.add_argument('--use_samples', action='store_true')
 parser.add_argument('--reshape', action='store_true', default=False)
 parser.add_argument('--use-sqrt-sigma', action='store_true', default=False)
-v
 
 parser.add_argument('--var1', action='store_true')
 parser.add_argument('--var2', action='store_true')

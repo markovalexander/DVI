@@ -35,6 +35,7 @@ parser.add_argument('--use-sqrt-sigma', action='store_true', default=False)
 parser.add_argument('--var2', action='store_true')
 parser.add_argument('--var3', action='store_true')
 parser.add_argument('--var4', action='store_true')
+parser.add_argument('--var5', action='store_true', default=False)
 
 fmt = {'kl': '3.3e',
        'tr_elbo': '3.3e',

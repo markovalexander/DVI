@@ -63,6 +63,9 @@ class LinearGaussian(nn.Module):
             torch.ones_like(self.bias_logvar) * 0.1,
             requires_grad=False)
 
+    def _get_var(self, param):
+        return torch.exp(param)
+
     def compute_kl(self):
         weights_kl = kl_gaussian(self.W, torch.exp(self.W_logvar),
                                  self.W_mean_prior, self.W_var_prior)
@@ -100,8 +103,8 @@ class LinearGaussian(nn.Module):
             return self._mcvi_forward(x)
 
     def _mcvi_forward(self, x):
-        W_var = torch.exp(self.W_logvar)
-        bias_var = torch.exp(self.bias_logvar)
+        W_var = self._get_var(self.W_logvar)
+        bias_var = self._get_var(self.bias_logvar)
 
         if self.certain:
             x_mean = x
@@ -124,8 +127,8 @@ class LinearGaussian(nn.Module):
         return sample, None
 
     def _det_forward(self, x):
-        W_var = torch.exp(self.W_logvar)
-        bias_var = torch.exp(self.bias_logvar)
+        W_var = self._get_var(self.W_logvar)
+        bias_var = self._get_var(self.bias_logvar)
 
         if self.certain:
             x_mean = x
@@ -164,8 +167,8 @@ class LinearGaussian(nn.Module):
 
         y_mean = F.linear(x_mean, torch.zeros_like(self.W).t()) + self.bias
 
-        W_var = torch.exp(self.W_logvar)
-        bias_var = torch.exp(self.bias_logvar)
+        W_var = self._get_var(self.W_logvar)
+        bias_var = self._get_var(self.bias_logvar)
 
         if x_var is None:
             xx = x_mean * x_mean
@@ -428,16 +431,27 @@ class HeavisideVDO(LinearVDO):
 
 class VarianceGaussian(LinearGaussian):
     def __init__(self, in_features, out_features,
-                 certain=False, deterministic=True):
+                 certain=False, deterministic=True, sigma_sq=False):
         super().__init__(in_features, out_features, certain, deterministic)
         self.W.data.fill_(0)
         self.W.requires_grad = False
+        self.sigma_sq = sigma_sq
+        if sigma_sq:
+            self.W_logvar.data.uniform_(-1 / (in_features + out_features),
+                                        1 / (in_features + out_features))
+            self.bias_logvar.data.uniform_(-1 / out_features, 1 / out_features)
 
     def _zero_mean_forward(self, x):
         if self.deterministic:
             return self._det_forward(x)
         else:
             return self._mcvi_forward(x)
+
+    def _get_var(self, param):
+        if self.sigma_sq:
+            return param * param
+        else:
+            return torch.exp(param)
 
     def compute_kl(self):
         return 0
@@ -445,27 +459,21 @@ class VarianceGaussian(LinearGaussian):
 
 class VarianceReluGaussian(ReluGaussian):
     def __init__(self, in_features, out_features,
-                 certain=False, deterministic=True):
+                 certain=False, deterministic=True, sigma_sq=False):
         super().__init__(in_features, out_features, certain, deterministic)
         self.W.data.fill_(0)
         self.W.requires_grad = False
+        self.sigma_sq = sigma_sq
+        if sigma_sq:
+            self.W_logvar.data.uniform_(-1 / (in_features + out_features),
+                                        1 / (in_features + out_features))
+            self.bias_logvar.data.uniform_(-1 / out_features, 1 / out_features)
 
-    def _zero_mean_forward(self, x):
-        if self.deterministic:
-            return self._det_forward(x)
+    def _get_var(self, param):
+        if self.sigma_sq:
+            return param * param
         else:
-            return self._mcvi_forward(x)
-
-    def compute_kl(self):
-        return 0
-
-
-class VarianceHeavisideGaussian(HeavisideGaussian):
-    def __init__(self, in_features, out_features,
-                 certain=False, deterministic=True):
-        super().__init__(in_features, out_features, certain, deterministic)
-        self.W.data.fill_(0)
-        self.W.requires_grad = False
+            return torch.exp(param)
 
     def _zero_mean_forward(self, x):
         if self.deterministic:
@@ -516,6 +524,9 @@ class MeanFieldConv2d(nn.Module):
         nn.init.uniform_(self.W_logvar, a=-10, b=-7)
         nn.init.uniform_(self.bias_logvar, a=-10, b=-7)
 
+    def _get_var(self, param):
+        return torch.exp(param)
+
     def _construct_priors(self):
         self.W_mean_prior = nn.Parameter(torch.zeros_like(self.W),
                                          requires_grad=False)
@@ -560,8 +571,8 @@ class MeanFieldConv2d(nn.Module):
             x_mean = x[0]
             x_var = x[1]
 
-        W_var = torch.exp(self.W_logvar)
-        bias_var = torch.exp(self.bias_logvar)
+        W_var = self._get_var(self.W_logvar)
+        bias_var = self._get_var(self.bias_logvar)
 
         z_mean = F.conv2d(x_mean, torch.zeros_like(self.W), self.bias,
                           self.stride,
@@ -598,8 +609,8 @@ class MeanFieldConv2d(nn.Module):
             x_mean = x
             x_var = x_mean * x_mean
 
-        W_var = torch.exp(self.W_logvar)
-        bias_var = torch.exp(self.bias_logvar)
+        W_var = self._get_var(self.W_logvar)
+        bias_var = self._get_var(self.bias_logvar)
 
         z_mean = F.conv2d(x_mean, self.W, self.bias,
                           self.stride,
@@ -616,8 +627,8 @@ class MeanFieldConv2d(nn.Module):
             x_mean = x[0]
             x_var = x[1]
 
-        W_var = torch.exp(self.W_logvar)
-        bias_var = torch.exp(self.bias_logvar)
+        W_var = self._get_var(self.W_logvar)
+        bias_var = self._get_var(self.bias_logvar)
 
         z_mean = F.conv2d(x_mean, self.W, self.bias,
                           self.stride,
@@ -663,11 +674,22 @@ class MeanFieldConv2d(nn.Module):
 class VarianceMeanFieldConv2d(MeanFieldConv2d):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1,
                  activation='relu', padding=0, certain=False,
-                 deterministic=True):
+                 deterministic=True, sigma_sq=False):
         super().__init__(in_channels, out_channels, kernel_size, stride,
                          activation, padding, certain, deterministic)
         self.W.data.fill_(0)
         self.W.requires_grad = False
+        self.sigma_sq = sigma_sq
+        if sigma_sq:
+            self.W_logvar.data.uniform_(-1 / (in_channels + out_channels),
+                                        1 / (in_channels + out_channels))
+            self.bias_logvar.data.uniform_(-1 / out_channels, 1 / out_channels)
+
+    def _get_var(self, param):
+        if self.sigma_sq:
+            return param * param
+        else:
+            return torch.exp(param)
 
     def compute_kl(self):
         return 0

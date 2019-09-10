@@ -33,17 +33,20 @@ class LinearVariance(nn.Module):
         super().__init__()
 
         if args.var1:
-            self.fc1 = VarianceGaussian(784, 300, certain=True)
+            self.fc1 = VarianceGaussian(784, 300, certain=True,
+                                        sigma_sq=args.use_sqrt_sigma)
         else:
             self.fc1 = DeterministicGaussian(784, 300, certain=True)
 
         if args.var2:
-            self.fc2 = VarianceReluGaussian(300, 100)
+            self.fc2 = VarianceReluGaussian(300, 100,
+                                            sigma_sq=args.use_sqrt_sigma)
         else:
             self.fc2 = DeterministicReluGaussian(300, 100)
 
         if args.var3:
-            self.fc3 = VarianceReluGaussian(100, 10)
+            self.fc3 = VarianceReluGaussian(100, 10,
+                                            sigma_sq=args.use_sqrt_sigma)
         else:
             self.fc3 = DeterministicReluGaussian(100, 10)
 
@@ -224,33 +227,38 @@ class LeNetVariance(nn.Module):
         if args.var1:
             self.conv1 = VarianceMeanFieldConv2d(1, 6, 5, padding=2,
                                                  certain=True,
-                                                 deterministic=not args.mcvi)
+                                                 deterministic=not args.mcvi,
+                                                 sigma_sq=args.use_sqrt_sigma)
         else:
             self.conv1 = MeanFieldConv2d(1, 6, 5, padding=2, certain=True,
                                          deterministic=not args.mcvi)
 
         if args.var2:
             self.conv2 = VarianceMeanFieldConv2d(6, 16, 5,
-                                                 deterministic=not args.mcvi)
+                                                 deterministic=not args.mcvi,
+                                                 sigma_sq=args.use_sqrt_sigma)
         else:
             self.conv2 = MeanFieldConv2d(6, 16, 5, deterministic=not args.mcvi)
 
         if args.var3:
             self.fc1 = VarianceReluGaussian(16 * 5 * 5, 120,
-                                            deterministic=not args.mcvi)
+                                            deterministic=not args.mcvi,
+                                            sigma_sq=args.use_sqrt_sigma)
         else:
             self.fc1 = DeterministicReluGaussian(16 * 5 * 5, 120,
                                                  deterministic=not args.mcvi)
 
         if args.var4:
             self.fc2 = VarianceReluGaussian(120, 84,
-                                            deterministic=not args.mcvi)
+                                            deterministic=not args.mcvi,
+                                            sigma_sq=args.use_sqrt_sigma)
         else:
             self.fc2 = DeterministicReluGaussian(120, 84,
                                                  deterministic=not args.mcvi)
 
         if args.var5:
-            self.fc3 = VarianceReluGaussian(84, 10, deterministic=not args.mcvi)
+            self.fc3 = VarianceReluGaussian(84, 10, deterministic=not args.mcvi,
+                                            sigma_sq=args.use_sqrt_sigma)
         else:
             self.fc3 = DeterministicReluGaussian(84, 10,
                                                  deterministic=not args.mcvi)

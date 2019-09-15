@@ -5,7 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from numpy import clip
 
-from bayesian_utils import logsoftmax_mean
+from .bayesian_utils import logsoftmax_mean
+from .utils import classification_posterior
 
 EPS = 1e-8
 
@@ -107,6 +108,13 @@ class ClassificationLoss(nn.Module):
         self.use_samples = args.use_samples
         self.n_samples = args.mc_samples
         self._step = 0
+        self.log_mean = vars(args).get('change_criterion', False)
+
+    def set_flag(self, flag_name, value):
+        setattr(self, flag_name, value)
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)
 
     def forward(self, logits, target):
         """
@@ -120,10 +128,15 @@ class ClassificationLoss(nn.Module):
             batch_logprob term
             total kl term
         """
-        if not self.mcvi:
+        if not (self.mcvi or self.log_mean):
             logsoftmax = logsoftmax_mean(logits)
-        else:
+        elif self.mcvi:
             logsoftmax = F.log_softmax(logits[0], dim=1)
+        elif self.log_mean:
+            posterior = classification_posterior(logits)
+            posterior = torch.clamp(posterior, 0, 1)
+            posterior = posterior / torch.sum(posterior, dim=-1, keepdim=True)
+            logsoftmax = torch.log(posterior + EPS)
 
         assert not target.requires_grad
         kl = 0.0

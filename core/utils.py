@@ -8,12 +8,19 @@ import torch.nn.functional as F
 from sklearn.datasets import make_classification, make_circles
 from torchvision import datasets, transforms
 
+from .bayesian_utils import sample_softmax, classification_posterior
+
 
 def one_hot_encoding(tensor, n_classes, device):
     ohe = torch.LongTensor(tensor.size(0), n_classes).to(device)
     ohe.zero_()
     ohe.scatter_(1, tensor, 1)
     return ohe
+
+
+def pred2acc(pred, y, batch_size):
+    t = torch.sum(torch.squeeze(pred) == torch.squeeze(y), dtype=torch.float32)
+    return (t / batch_size).item()
 
 
 def toy_results_plot_regression(data, data_generator, predictions=None,
@@ -175,19 +182,19 @@ def draw_classification_results(data, prediction, name, args):
 
 def load_mnist(args):
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('../data', train=True, download=True,
+        datasets.MNIST('../../data', train=True, download=True,
                        transform=transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
                        ])),
-        batch_size=args.batch_size, shuffle=True)
+        batch_size=args.batch_size, shuffle=True, num_workers=0)
 
     test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('../data', train=False, transform=transforms.Compose([
+        datasets.MNIST('../../data', train=False, transform=transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.1307,), (0.3081,))
         ])),
-        batch_size=args.test_batch_size, shuffle=True)
+        batch_size=args.test_batch_size, shuffle=True, num_workers=0)
     return train_loader, test_loader
 
 
@@ -201,34 +208,60 @@ def load_checkpoint(experiment, name='last.pth.tar'):
     return checkpoint['state_dict']
 
 
-def report(dir, epoch, elbo, cat_mean, kl, accuracy, test_acc_prob):
-    message = "\nELBO : {:.4f}\t categorical_mean: {:.4f}\t KL: {:.4f}\n".format(
-        elbo, cat_mean, kl)
-    message += "train accuracy: {:.4f}\t".format(accuracy)
-    message += "test_accuracy(probs): {:.4f}\t".format(test_acc_prob)
-    print(message)
-
-    message = "\nepoch: {}\n".format(epoch) + message
-    with open(os.path.join(dir, 'report'), 'a') as f:
-        print(message, file=f)
-
-
-def prepare_directory(args):
-    if args.checkpoint_dir == '':
-        args.checkpoint_dir = os.path.join('checkpoints', 'last_expirement')
-    else:
-        args.checkpoint_dir = os.path.join('checkpoints', args.checkpoint_dir)
-
-    os.makedirs(args.checkpoint_dir, exist_ok=True)
-    os.system('rm -rf %s/*' % args.checkpoint_dir)
-
-    print(args)
-    with open(os.path.join(args.checkpoint_dir, 'hypers'), 'w') as f:
-        print(args, file=f)
-
-
 def mc_prediction(model, input, n_samples):
     logits = torch.stack([model(input)[0] for _ in range(n_samples)], dim=0)
     probs = F.softmax(logits, dim=-1)
     mean_probs = torch.mean(probs, dim=0)
     return mean_probs
+
+
+def evaluate(model, loader, mode, args, zero_mean=False):
+    prev_mcvi, prev_samples = args.mcvi, args.use_samples
+    accuracy = []
+
+    if mode == 'mcvi':
+        model.set_flag('deterministic', False)
+        args.mcvi = True
+    if mode == 'dvi':
+        model.set_flag('deterministic', True)
+        args.mcvi = False
+    if mode == 'samples_dvi':
+        model.set_flag('deterministic', True)
+        args.use_samples = True
+
+    if zero_mean:
+        model.zero_mean()
+
+    with torch.no_grad():
+        for data, y_test in loader:
+            x = data.to(args.device)
+            if args.reshape:
+                x = x.view(-1, 784)
+
+            y = y_test.to(args.device)
+
+            if mode == 'mcvi':
+                probs = mc_prediction(model, x, args.mc_samples)
+            elif mode == 'samples_dvi':
+                activations = model(x)
+                probs = sample_softmax(activations, n_samples=args.mc_samples)
+            elif mode == 'dvi':
+                activations = model(x)
+                probs = classification_posterior(activations)
+            else:
+                raise ValueError('invalid mode for evaluate')
+
+            pred = torch.argmax(probs, dim=1)
+            accuracy.append(pred2acc(pred, y, args.test_batch_size))
+
+    args.mcvi = prev_mcvi
+    args.use_samples = prev_samples
+    if prev_mcvi:
+        model.set_flag('mcvi', True)
+    else:
+        model.set_flag('deterministic', True)
+
+    if zero_mean:
+        model.zero_mean(False)
+
+    return np.mean(accuracy)

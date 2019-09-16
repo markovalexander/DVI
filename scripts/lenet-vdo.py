@@ -1,7 +1,3 @@
-import sys
-
-sys.path.append('..')
-
 import argparse
 from time import time
 

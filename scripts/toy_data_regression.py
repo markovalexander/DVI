@@ -5,9 +5,9 @@ import numpy as np
 import torch
 from torch import nn
 
-from layers import LinearGaussian, ReluGaussian
-from losses import RegressionLoss
-from utils import toy_results_plot_regression, get_predictions, \
+from core.layers import LinearGaussian, ReluGaussian
+from core.losses import RegressionLoss
+from core.utils import draw_regression_result, get_predictions, \
     generate_regression_data
 
 np.random.seed(42)
@@ -129,40 +129,40 @@ if __name__ == "__main__":
         if epoch % args.draw_every == 0:
             with torch.no_grad():
                 predictions = get_predictions(x_train, model, args, args.mcvi)
-                toy_results_plot_regression(toy_data,
-                                            {'mean': base_model,
-                                             'std': lambda x: noise_model(x,
-                                                                          args)},
-                                            predictions=predictions,
-                                            name='pics/{}/after_{}.png'.format(
-                                                mode, epoch))
+                draw_regression_result(toy_data,
+                                       {'mean': base_model,
+                                        'std': lambda x: noise_model(x,
+                                                                     args)},
+                                       predictions=predictions,
+                                       name='pics/{}/after_{}.png'.format(
+                                           mode, epoch))
 
     with torch.no_grad():
         predictions = get_predictions(x_train, model, args, args.mcvi)
-        toy_results_plot_regression(toy_data,
-                                    {'mean': base_model,
-                                     'std': lambda x: noise_model(x, args)},
-                                    predictions=predictions,
-                                    name='pics/{}/last.png'.format(
-                                        mode))
+        draw_regression_result(toy_data,
+                               {'mean': base_model,
+                                'std': lambda x: noise_model(x, args)},
+                               predictions=predictions,
+                               name='pics/{}/last.png'.format(
+                                   mode))
 
     if args.mcvi:
         model.determenistic()
         with torch.no_grad():
             predictions = get_predictions(x_train, model, args, False)
-            toy_results_plot_regression(toy_data,
-                                        {'mean': base_model,
-                                         'std': lambda x: noise_model(x, args)},
-                                        predictions=predictions,
-                                        name='pics/{}/swapped.png'.format(
-                                            mode))
+            draw_regression_result(toy_data,
+                                   {'mean': base_model,
+                                    'std': lambda x: noise_model(x, args)},
+                                   predictions=predictions,
+                                   name='pics/{}/swapped.png'.format(
+                                       mode))
     else:
         model.mcvi()
         with torch.no_grad():
             predictions = get_predictions(x_train, model, args, True)
-            toy_results_plot_regression(toy_data,
-                                        {'mean': base_model,
-                                         'std': lambda x: noise_model(x, args)},
-                                        predictions=predictions,
-                                        name='pics/{}/swapped.png'.format(
-                                            mode))
+            draw_regression_result(toy_data,
+                                   {'mean': base_model,
+                                    'std': lambda x: noise_model(x, args)},
+                                   predictions=predictions,
+                                   name='pics/{}/swapped.png'.format(
+                                       mode))

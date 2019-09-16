@@ -23,8 +23,7 @@ def pred2acc(pred, y, batch_size):
     return (t / batch_size).item()
 
 
-def toy_results_plot_regression(data, data_generator, predictions=None,
-                                name=None):
+def draw_regression_result(data, data_generator, predictions=None, name=None):
     x = predictions[0]
     train_x = np.arange(np.min(x.reshape(-1)),
                         np.max(x.reshape(-1)), 1 / 100)
